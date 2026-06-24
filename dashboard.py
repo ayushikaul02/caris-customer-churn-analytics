@@ -2,54 +2,62 @@ import streamlit as st
 import pandas as pd
 import requests
 import plotly.express as px
-import plotly.graph_objects as go
 from datetime import datetime
+import os
 import json
-import time
 
-# Page configuration
+# Page config
 st.set_page_config(
-    page_title="CARIS - Customer Analytics",
+    page_title="CARIS - Customer Churn Analytics",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
+# ==================== CUSTOM CSS ====================
 st.markdown("""
 <style>
     .main-header {
         font-size: 2.5rem;
-        color: #1a365d;
+        color: white;
         text-align: center;
         padding: 1rem;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         border-radius: 10px;
-        color: white;
         margin-bottom: 2rem;
     }
     .metric-card {
         background: white;
-        padding: 1rem;
+        padding: 1.5rem;
         border-radius: 10px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         text-align: center;
+        transition: transform 0.3s;
+    }
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
     }
     .metric-value {
-        font-size: 2rem;
+        font-size: 2.5rem;
         font-weight: bold;
         color: #1a365d;
     }
     .metric-label {
         font-size: 0.9rem;
         color: #718096;
+        margin-top: 5px;
+    }
+    .metric-icon {
+        font-size: 2rem;
+        margin-bottom: 5px;
     }
     .login-container {
         max-width: 400px;
         margin: 100px auto;
         padding: 40px;
         background: white;
-        border-radius: 10px;
+        border-radius: 15px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     }
     .login-title {
@@ -58,28 +66,50 @@ st.markdown("""
         color: #1a365d;
         margin-bottom: 30px;
     }
+    .stButton > button {
+        width: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: bold;
+        border: none;
+        border-radius: 8px;
+        padding: 10px;
+    }
+    .stButton > button:hover {
+        transform: scale(1.02);
+    }
+    .recommendation-card {
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        border-left: 4px solid;
+    }
+    .risk-critical { background: #fdedec; border-color: #e74c3c; }
+    .risk-high { background: #fdedec; border-color: #e74c3c; }
+    .risk-medium { background: #fef9e7; border-color: #f39c12; }
+    .risk-low { background: #ebf5fb; border-color: #3498db; }
 </style>
 """, unsafe_allow_html=True)
 
-# API Base URL
-API_URL = "http://localhost:8000"
+# ==================== API CONFIG ====================
+API_URL = os.getenv("API_URL", "https://caris-api.onrender.com")
 
-# Initialize session state
+# ==================== SESSION STATE ====================
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
-if 'username' not in st.session_state:
-    st.session_state.username = ""
 if 'token' not in st.session_state:
     st.session_state.token = ""
+if 'username' not in st.session_state:
+    st.session_state.username = ""
 
-# -------------------- LOGIN PAGE --------------------
+# ==================== LOGIN ====================
 if not st.session_state.logged_in:
     st.markdown('<div class="login-container">', unsafe_allow_html=True)
     st.markdown('<div class="login-title">🔐 CARIS Login</div>', unsafe_allow_html=True)
     
     with st.form("login_form"):
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
+        username = st.text_input("Username", placeholder="admin")
+        password = st.text_input("Password", type="password", placeholder="admin123")
         submit = st.form_submit_button("Login")
         
         if submit:
@@ -96,17 +126,16 @@ if not st.session_state.logged_in:
                     st.rerun()
                 else:
                     st.error("❌ Invalid username or password")
-            except:
-                st.error("❌ Could not connect to server. Make sure API is running.")
+            except Exception as e:
+                st.error(f"❌ Could not connect to server: {e}")
     
     st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
-# -------------------- MAIN DASHBOARD --------------------
-# Header
-st.markdown(f'<div class="main-header">📊 CARIS - Customer Churn Analytics</div>', unsafe_allow_html=True)
+# ==================== HEADER ====================
+st.markdown('<div class="main-header">📊 CARIS - Customer Churn Analytics</div>', unsafe_allow_html=True)
 
-# Sidebar
+# ==================== SIDEBAR ====================
 with st.sidebar:
     st.image("https://img.icons8.com/color/96/000000/data-configuration.png", width=80)
     st.title("Navigation")
@@ -121,65 +150,37 @@ with st.sidebar:
     
     if st.button("🚪 Logout"):
         st.session_state.logged_in = False
-        st.session_state.username = ""
         st.session_state.token = ""
         st.rerun()
     
-    st.caption(f"Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    st.caption("CARIS v1.0.0")
+    st.caption(f"🕐 Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    st.caption("🚀 CARIS v1.0.0")
 
-# API Headers with Token
+# ==================== API HELPERS ====================
 headers = {"Authorization": f"Bearer {st.session_state.token}"} if st.session_state.token else {}
 
-# Function to fetch data from API
 @st.cache_data(ttl=300)
-def fetch_customers():
+def fetch_data(endpoint, method="GET", data=None):
     try:
-        response = requests.get(f"{API_URL}/api/customers?limit=100", headers=headers, timeout=5)
-        if response.status_code == 200:
-            return pd.DataFrame(response.json())
-        return pd.DataFrame()
-    except:
-        return pd.DataFrame()
-
-@st.cache_data(ttl=300)
-def fetch_dashboard_metrics():
-    try:
-        response = requests.get(f"{API_URL}/api/dashboard/metrics", headers=headers, timeout=5)
+        if method == "GET":
+            response = requests.get(f"{API_URL}{endpoint}", headers=headers, timeout=10)
+        else:
+            response = requests.post(f"{API_URL}{endpoint}", headers=headers, json=data, timeout=10)
         if response.status_code == 200:
             return response.json()
-        return {}
-    except:
-        return {}
+        return None
+    except Exception as e:
+        st.error(f"⚠️ API Error: {e}")
+        return None
 
-@st.cache_data(ttl=300)
-def fetch_churn_analysis():
-    try:
-        response = requests.get(f"{API_URL}/api/analytics/churn", headers=headers, timeout=5)
-        if response.status_code == 200:
-            return response.json()
-        return {}
-    except:
-        return {}
-
-@st.cache_data(ttl=300)
-def fetch_segments():
-    try:
-        response = requests.post(f"{API_URL}/api/analytics/customer-segments", headers=headers, timeout=5)
-        if response.status_code == 200:
-            return response.json()
-        return {}
-    except:
-        return {}
-
-# Load data
+# ==================== DATA LOADING ====================
 with st.spinner("Loading data..."):
-    df_customers = fetch_customers()
-    metrics = fetch_dashboard_metrics()
-    churn_data = fetch_churn_analysis()
-    segments = fetch_segments()
+    customers_data = fetch_data("/api/customers?limit=100")
+    metrics = fetch_data("/api/dashboard/metrics")
+    churn_data = fetch_data("/api/analytics/churn")
+    segments = fetch_data("/api/analytics/customer-segments", method="POST")
 
-# -------------------- OVERVIEW PAGE --------------------
+# ==================== OVERVIEW PAGE ====================
 if page == "🏠 Overview":
     st.markdown("## 📊 Executive Dashboard")
     
@@ -189,6 +190,7 @@ if page == "🏠 Overview":
         with col1:
             st.markdown(f"""
             <div class="metric-card">
+                <div class="metric-icon">👥</div>
                 <div class="metric-value">{metrics.get('customer_kpis', {}).get('total_customers', 0)}</div>
                 <div class="metric-label">Total Customers</div>
             </div>
@@ -197,6 +199,7 @@ if page == "🏠 Overview":
         with col2:
             st.markdown(f"""
             <div class="metric-card">
+                <div class="metric-icon">✅</div>
                 <div class="metric-value">{metrics.get('customer_kpis', {}).get('active_customers', 0)}</div>
                 <div class="metric-label">Active Customers</div>
             </div>
@@ -207,6 +210,7 @@ if page == "🏠 Overview":
             color = "#e74c3c" if churn_rate > 15 else "#f39c12" if churn_rate > 10 else "#27ae60"
             st.markdown(f"""
             <div class="metric-card">
+                <div class="metric-icon">📉</div>
                 <div class="metric-value" style="color:{color}">{churn_rate:.1f}%</div>
                 <div class="metric-label">Churn Rate</div>
             </div>
@@ -216,17 +220,17 @@ if page == "🏠 Overview":
             revenue = metrics.get('revenue_kpis', {}).get('total_revenue', 0)
             st.markdown(f"""
             <div class="metric-card">
+                <div class="metric-icon">💰</div>
                 <div class="metric-value">${revenue:,.0f}</div>
                 <div class="metric-label">Total Revenue</div>
             </div>
             """, unsafe_allow_html=True)
         
         st.markdown("---")
-        
         col1, col2 = st.columns(2)
         
         with col1:
-            st.subheader("Revenue by Segment")
+            st.subheader("📊 Customer Segments")
             if segments and 'segments' in segments:
                 seg_data = segments['segments']
                 fig = px.pie(
@@ -238,7 +242,7 @@ if page == "🏠 Overview":
                 st.plotly_chart(fig, use_container_width=True)
         
         with col2:
-            st.subheader("Customer Status Distribution")
+            st.subheader("📊 Status Distribution")
             if metrics and 'segment_kpis' in metrics:
                 status_data = metrics['segment_kpis'].get('status_distribution', {})
                 if status_data:
@@ -250,23 +254,23 @@ if page == "🏠 Overview":
                         color_discrete_sequence=px.colors.qualitative.Set2
                     )
                     st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("⚠️ Could not connect to API. Make sure the server is running.")
 
-# -------------------- CUSTOMERS PAGE --------------------
+# ==================== CUSTOMERS PAGE ====================
 elif page == "👥 Customers":
     st.markdown("## 👥 Customer Management")
     
-    if not df_customers.empty:
+    if customers_data:
+        df = pd.DataFrame(customers_data)
         col1, col2, col3 = st.columns(3)
-        with col1:
-            segment_filter = st.selectbox("Filter by Segment", ["All"] + list(df_customers['customer_segment'].unique()))
-        with col2:
-            status_filter = st.selectbox("Filter by Status", ["All"] + list(df_customers['status'].unique()))
-        with col3:
-            search = st.text_input("Search Customer", placeholder="Name or Email...")
         
-        filtered_df = df_customers.copy()
+        with col1:
+            segment_filter = st.selectbox("Segment", ["All"] + list(df['customer_segment'].unique()))
+        with col2:
+            status_filter = st.selectbox("Status", ["All"] + list(df['status'].unique()))
+        with col3:
+            search = st.text_input("Search", placeholder="Name or Email...")
+        
+        filtered_df = df.copy()
         if segment_filter != "All":
             filtered_df = filtered_df[filtered_df['customer_segment'] == segment_filter]
         if status_filter != "All":
@@ -286,7 +290,7 @@ elif page == "👥 Customers":
     else:
         st.warning("No customer data available.")
 
-# -------------------- ANALYTICS PAGE --------------------
+# ==================== ANALYTICS PAGE ====================
 elif page == "📈 Analytics":
     st.markdown("## 📈 Churn & Revenue Analytics")
     
@@ -299,8 +303,7 @@ elif page == "📈 Analytics":
             fig = px.bar(
                 x=list(churn_seg.keys()),
                 y=list(churn_seg.values()),
-                title="Churn Rate by Customer Segment",
-                labels={'x': 'Segment', 'y': 'Churn Rate'},
+                title="Churn Rate by Segment",
                 color=list(churn_seg.keys()),
                 color_discrete_sequence=px.colors.qualitative.Set3
             )
@@ -312,47 +315,45 @@ elif page == "📈 Analytics":
             high_risk = metrics['churn_kpis'].get('high_risk_customers', 0)
             total = metrics.get('customer_kpis', {}).get('total_customers', 0)
             risk_data = {'Low Risk': total - high_risk, 'High Risk': high_risk}
-            if sum(risk_data.values()) > 0:
-                fig = px.pie(
-                    values=list(risk_data.values()),
-                    names=list(risk_data.keys()),
-                    title="Customer Risk Distribution",
-                    color=list(risk_data.keys()),
-                    color_discrete_map={'Low Risk': '#27ae60', 'High Risk': '#e74c3c'}
-                )
-                st.plotly_chart(fig, use_container_width=True)
+            fig = px.pie(
+                values=list(risk_data.values()),
+                names=list(risk_data.keys()),
+                title="Risk Distribution",
+                color=list(risk_data.keys()),
+                color_discrete_map={'Low Risk': '#27ae60', 'High Risk': '#e74c3c'}
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
-# -------------------- RETENTION PAGE --------------------
+# ==================== RETENTION PAGE ====================
 elif page == "🎯 Retention":
     st.markdown("## 🎯 Retention Recommendations")
     
-    try:
-        response = requests.post(f"{API_URL}/api/retention/recommendations", headers=headers, timeout=5)
-        if response.status_code == 200:
-            recommendations = response.json()
-            risk_filter = st.selectbox("Filter by Risk Level", ["All", "Critical", "High", "Medium", "Low"])
+    recs = fetch_data("/api/retention/recommendations", method="POST")
+    
+    if recs:
+        risk_filter = st.selectbox("Filter by Risk Level", ["All", "Critical", "High", "Medium", "Low"])
+        if risk_filter != "All":
+            recs = [r for r in recs if r.get('risk_level') == risk_filter]
+        
+        for rec in recs[:10]:
+            risk = rec.get('risk_level', 'Unknown')
+            risk_class = f"risk-{risk.lower()}" if risk.lower() in ['critical', 'high', 'medium', 'low'] else ""
+            bg_color = "#fdedec" if risk in ['Critical', 'High'] else "#fef9e7" if risk == 'Medium' else "#ebf5fb"
+            border_color = "#e74c3c" if risk in ['Critical', 'High'] else "#f39c12" if risk == 'Medium' else "#3498db"
+            recs_list = rec.get('recommendations', [])
+            rec_text = ', '.join(recs_list[:3]) if recs_list else "No recommendations"
             
-            if risk_filter != "All":
-                recommendations = [r for r in recommendations if r.get('risk_level') == risk_filter]
-            
-            for rec in recommendations[:10]:
-                risk = rec.get('risk_level', 'Unknown')
-                bg_color = "#fdedec" if risk in ['Critical', 'High'] else "#fef9e7" if risk == 'Medium' else "#ebf5fb"
-                border_color = "#e74c3c" if risk in ['Critical', 'High'] else "#f39c12" if risk == 'Medium' else "#3498db"
-                recs = rec.get('recommendations', [])
-                rec_text = ', '.join(recs[:3]) if recs else "No recommendations"
-                
-                st.markdown(f"""
-                <div style="background:{bg_color}; padding:15px; border-radius:10px; border-left:4px solid {border_color}; margin-bottom:10px;">
-                    <strong>👤 {rec.get('customer_name', 'Unknown')}</strong>
-                    <span style="float:right;"><strong>{risk}</strong></span><br>
-                    <span style="font-size:0.9rem;">{rec_text}</span>
-                </div>
-                """, unsafe_allow_html=True)
-    except:
-        st.error("⚠️ Could not connect to API.")
+            st.markdown(f"""
+            <div style="background:{bg_color}; padding:15px; border-radius:10px; border-left:4px solid {border_color}; margin-bottom:10px;">
+                <strong>👤 {rec.get('customer_name', 'Unknown')}</strong>
+                <span style="float:right; font-weight:bold; color:{border_color};">{risk}</span><br>
+                <span style="font-size:0.9rem; color:#555;">{rec_text}</span>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("No recommendations available")
 
-# -------------------- REPORTS PAGE --------------------
+# ==================== REPORTS PAGE ====================
 elif page == "📊 Reports":
     st.markdown("## 📊 Generate Reports")
     
@@ -360,22 +361,16 @@ elif page == "📊 Reports":
     
     with col1:
         if st.button("📄 Generate Monthly Report"):
-            try:
-                response = requests.get(f"{API_URL}/api/reports/monthly", headers=headers, timeout=5)
-                if response.status_code == 200:
-                    st.json(response.json())
-            except:
-                st.error("⚠️ Could not connect to API.")
+            report = fetch_data("/api/reports/monthly")
+            if report:
+                st.json(report)
     
     with col2:
         if st.button("📊 Generate Excel Report"):
-            try:
-                response = requests.get(f"{API_URL}/api/reports/excel", headers=headers, timeout=5)
-                if response.status_code == 200:
-                    data = response.json()
-                    st.success(f"✅ Report generated: {data.get('filepath', '')}")
-            except:
-                st.error("⚠️ Could not connect to API.")
+            excel = fetch_data("/api/reports/excel")
+            if excel:
+                st.success(f"✅ Report generated: {excel.get('filepath', '')}")
 
+# ==================== FOOTER ====================
 st.markdown("---")
 st.caption("© 2026 CARIS - Customer Churn Analytics & Retention Intelligence System")
