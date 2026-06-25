@@ -1,5 +1,4 @@
 services:
-  # API Service
   - type: web
     name: caris-api
     runtime: python
@@ -8,15 +7,3 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.4
-
-  # Dashboard Service
-  - type: web
-    name: caris-dashboard
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: streamlit run dashboard.py --server.port 10000 --server.address 0.0.0.0
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.12.4
-      - key: API_URL
-        value: https://caris-api.onrender.com
