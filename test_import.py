@@ -9,6 +9,7 @@ print(f"Folders in current directory: {os.listdir()}")
 
 try:
     from customer_ingestion.src.ingestion_service import DataIngestionService
+
     print("✅ Import successful!")
 except Exception as e:
     print(f"❌ Import failed: {e}")

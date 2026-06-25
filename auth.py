@@ -11,30 +11,26 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+
 # Models
 class User(BaseModel):
     username: str
     password: str
 
+
 class Token(BaseModel):
     access_token: str
     token_type: str
 
+
 # Mock users (in production, use database)
 fake_users_db = {
-    "admin": {
-        "username": "admin",
-        "password": "admin123",  # In production, use hashed passwords
-        "role": "admin"
-    },
-    "user": {
-        "username": "user",
-        "password": "user123",
-        "role": "user"
-    }
+    "admin": {"username": "admin", "password": "admin123", "role": "admin"},  # In production, use hashed passwords
+    "user": {"username": "user", "password": "user123", "role": "user"},
 }
 
 security = HTTPBearer()
+
 
 def create_access_token(data: dict, expires_delta: Optional[datetime.timedelta] = None):
     to_encode = data.copy()
@@ -45,6 +41,7 @@ def create_access_token(data: dict, expires_delta: Optional[datetime.timedelta] 
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
@@ -58,6 +55,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
 
 def get_current_user(username: str = Depends(verify_token)):
     if username not in fake_users_db:

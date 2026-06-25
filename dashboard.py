@@ -9,14 +9,12 @@ import json
 
 # ==================== PAGE CONFIG ====================
 st.set_page_config(
-    page_title="CARIS - Enterprise Churn Analytics",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="CARIS - Enterprise Churn Analytics", page_icon="📊", layout="wide", initial_sidebar_state="expanded"
 )
 
 # ==================== CUSTOM CSS ====================
-st.markdown("""
+st.markdown(
+    """
 <style>
     /* Main Header */
     .main-header {
@@ -205,17 +203,19 @@ st.markdown("""
         color: white;
     }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # ==================== API CONFIG ====================
 API_URL = os.getenv("API_URL", "https://caris-api.onrender.com")
 
 # ==================== SESSION STATE ====================
-if 'logged_in' not in st.session_state:
+if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
-if 'token' not in st.session_state:
+if "token" not in st.session_state:
     st.session_state.token = ""
-if 'username' not in st.session_state:
+if "username" not in st.session_state:
     st.session_state.username = ""
 
 # ==================== LOGIN ====================
@@ -232,9 +232,7 @@ if not st.session_state.logged_in:
         if submit:
             try:
                 response = requests.post(
-                    f"{API_URL}/api/auth/login",
-                    json={"username": username, "password": password},
-                    timeout=10
+                    f"{API_URL}/api/auth/login", json={"username": username, "password": password}, timeout=10
                 )
                 if response.status_code == 200:
                     data = response.json()
@@ -247,11 +245,13 @@ if not st.session_state.logged_in:
             except Exception as e:
                 st.error(f"❌ Connection error: {e}")
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
 # ==================== HEADER ====================
-st.markdown('<div class="main-header">📊 CARIS — Customer Churn Analytics & Retention Intelligence</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="main-header">📊 CARIS — Customer Churn Analytics & Retention Intelligence</div>', unsafe_allow_html=True
+)
 
 # ==================== SIDEBAR ====================
 with st.sidebar:
@@ -259,18 +259,17 @@ with st.sidebar:
 
     st.image("https://img.icons8.com/color/96/000000/data-configuration.png", width=70)
 
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div class="sidebar-user">
         <div class="name">👤 {st.session_state.username}</div>
         <div class="role">Administrator</div>
     </div>
-    """, unsafe_allow_html=True)
-
-    page = st.radio(
-        "Navigation",
-        ["📊 Overview", "👥 Customers", "📈 Analytics", "🎯 Retention", "📋 Reports"],
-        index=0
+    """,
+        unsafe_allow_html=True,
     )
+
+    page = st.radio("Navigation", ["📊 Overview", "👥 Customers", "📈 Analytics", "🎯 Retention", "📋 Reports"], index=0)
 
     st.markdown("---")
 
@@ -282,10 +281,11 @@ with st.sidebar:
         st.session_state.token = ""
         st.rerun()
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # ==================== API HELPERS ====================
 headers = {"Authorization": f"Bearer {st.session_state.token}"} if st.session_state.token else {}
+
 
 @st.cache_data(ttl=300)
 def fetch_data(endpoint, method="GET", data=None):
@@ -301,6 +301,7 @@ def fetch_data(endpoint, method="GET", data=None):
         st.error(f"⚠️ API Error: {e}")
         return None
 
+
 # ==================== LOAD DATA ====================
 with st.spinner("Loading data..."):
     customers_data = fetch_data("/api/customers?limit=100")
@@ -308,16 +309,17 @@ with st.spinner("Loading data..."):
     churn_data = fetch_data("/api/analytics/churn")
     segments = fetch_data("/api/analytics/customer-segments", method="POST")
 
+
 # ==================== CALCULATE BUSINESS METRICS ====================
 def calculate_business_impact(metrics):
     """Calculate business impact metrics"""
     impact = {}
 
     if metrics:
-        total_customers = metrics.get('customer_kpis', {}).get('total_customers', 0)
-        churn_rate = metrics.get('churn_kpis', {}).get('churn_rate', 0)
-        avg_revenue = metrics.get('revenue_kpis', {}).get('avg_revenue_per_customer', 0)
-        high_risk = metrics.get('churn_kpis', {}).get('high_risk_customers', 0)
+        total_customers = metrics.get("customer_kpis", {}).get("total_customers", 0)
+        churn_rate = metrics.get("churn_kpis", {}).get("churn_rate", 0)
+        avg_revenue = metrics.get("revenue_kpis", {}).get("avg_revenue_per_customer", 0)
+        high_risk = metrics.get("churn_kpis", {}).get("high_risk_customers", 0)
 
         # Revenue at risk
         revenue_at_risk = high_risk * avg_revenue
@@ -325,13 +327,14 @@ def calculate_business_impact(metrics):
         # Potential savings (assuming 50% retention improvement)
         potential_savings = revenue_at_risk * 0.5
 
-        impact['revenue_at_risk'] = revenue_at_risk
-        impact['potential_savings'] = potential_savings
-        impact['high_risk_count'] = high_risk
-        impact['churn_rate'] = churn_rate
-        impact['avg_revenue'] = avg_revenue
+        impact["revenue_at_risk"] = revenue_at_risk
+        impact["potential_savings"] = potential_savings
+        impact["high_risk_count"] = high_risk
+        impact["churn_rate"] = churn_rate
+        impact["avg_revenue"] = avg_revenue
 
     return impact
+
 
 business_impact = calculate_business_impact(metrics)
 
@@ -345,83 +348,109 @@ if page == "📊 Overview":
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div class="impact-card">
             <div class="impact-value">${business_impact.get('revenue_at_risk', 0):,.0f}</div>
             <div class="impact-label">💰 Revenue at Risk</div>
             <div class="impact-sub">From {business_impact.get('high_risk_count', 0)} high-risk customers</div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     with col2:
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div class="impact-card">
             <div class="impact-value" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">${business_impact.get('potential_savings', 0):,.0f}</div>
             <div class="impact-label">🎯 Potential Savings</div>
             <div class="impact-sub">With 50% retention improvement</div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     with col3:
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div class="impact-card">
             <div class="impact-value">{business_impact.get('churn_rate', 0)*100:.1f}%</div>
             <div class="impact-label">📉 Current Churn Rate</div>
             <div class="impact-sub">Industry avg: ~15-20%</div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     with col4:
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div class="impact-card">
             <div class="impact-value">${business_impact.get('avg_revenue', 0):,.0f}</div>
             <div class="impact-label">💳 Avg Customer Value</div>
             <div class="impact-sub">Per customer lifetime</div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     st.markdown("---")
 
     # KPIs
-    st.markdown('<div class="section-title">📈 Key Performance Indicators <span class="line"></span></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-title">📈 Key Performance Indicators <span class="line"></span></div>', unsafe_allow_html=True
+    )
 
     if metrics:
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div class="metric-card">
                 <div class="metric-value">{metrics.get('customer_kpis', {}).get('total_customers', 0):,}</div>
                 <div class="metric-label">👥 Total Customers</div>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
         with col2:
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div class="metric-card">
                 <div class="metric-value">{metrics.get('customer_kpis', {}).get('active_customers', 0):,}</div>
                 <div class="metric-label">✅ Active Customers</div>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
         with col3:
-            churn_rate = metrics.get('churn_kpis', {}).get('churn_rate', 0) * 100
+            churn_rate = metrics.get("churn_kpis", {}).get("churn_rate", 0) * 100
             color = "#ef4444" if churn_rate > 15 else "#f59e0b" if churn_rate > 10 else "#10b981"
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div class="metric-card">
                 <div class="metric-value" style="color:{color}">{churn_rate:.1f}%</div>
                 <div class="metric-label">📉 Churn Rate</div>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
         with col4:
-            revenue = metrics.get('revenue_kpis', {}).get('total_revenue', 0)
-            st.markdown(f"""
+            revenue = metrics.get("revenue_kpis", {}).get("total_revenue", 0)
+            st.markdown(
+                f"""
             <div class="metric-card">
                 <div class="metric-value">${revenue:,.0f}</div>
                 <div class="metric-label">💰 Total Revenue</div>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
     st.markdown("---")
 
@@ -430,51 +459,46 @@ if page == "📊 Overview":
 
     with col1:
         st.markdown('<div class="section-title">📊 Customer Segments <span class="line"></span></div>', unsafe_allow_html=True)
-        if segments and 'segments' in segments:
-            seg_data = segments['segments']
+        if segments and "segments" in segments:
+            seg_data = segments["segments"]
             fig = px.pie(
                 values=list(seg_data.values()),
                 names=list(seg_data.keys()),
                 title="",
                 color_discrete_sequence=px.colors.sequential.Blues_r,
-                hole=0.4
+                hole=0.4,
             )
             fig.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font_color='rgba(255,255,255,0.7)',
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font_color="rgba(255,255,255,0.7)",
                 showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.2)
+                legend=dict(orientation="h", yanchor="bottom", y=-0.2),
             )
             st.plotly_chart(fig, use_container_width=True)
 
     with col2:
         st.markdown('<div class="section-title">📊 Customer Status <span class="line"></span></div>', unsafe_allow_html=True)
-        if metrics and 'segment_kpis' in metrics:
-            status_data = metrics['segment_kpis'].get('status_distribution', {})
+        if metrics and "segment_kpis" in metrics:
+            status_data = metrics["segment_kpis"].get("status_distribution", {})
             if status_data:
-                colors_map = {
-                    'active': '#10b981',
-                    'inactive': '#f59e0b',
-                    'churned': '#ef4444',
-                    'suspended': '#8b5cf6'
-                }
-                colors = [colors_map.get(k, '#6b7280') for k in status_data.keys()]
+                colors_map = {"active": "#10b981", "inactive": "#f59e0b", "churned": "#ef4444", "suspended": "#8b5cf6"}
+                colors = [colors_map.get(k, "#6b7280") for k in status_data.keys()]
                 fig = px.bar(
                     x=list(status_data.keys()),
                     y=list(status_data.values()),
                     title="",
                     color=list(status_data.keys()),
                     color_discrete_sequence=colors,
-                    text_auto=True
+                    text_auto=True,
                 )
                 fig.update_layout(
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    font_color='rgba(255,255,255,0.7)',
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    font_color="rgba(255,255,255,0.7)",
                     showlegend=False,
                     yaxis_title="",
-                    xaxis_title=""
+                    xaxis_title="",
                 )
                 st.plotly_chart(fig, use_container_width=True)
 
@@ -488,39 +512,37 @@ elif page == "👥 Customers":
         # Filters
         col1, col2, col3 = st.columns(3)
         with col1:
-            segment_filter = st.selectbox("Filter by Segment", ["All"] + list(df['customer_segment'].unique()))
+            segment_filter = st.selectbox("Filter by Segment", ["All"] + list(df["customer_segment"].unique()))
         with col2:
-            status_filter = st.selectbox("Filter by Status", ["All"] + list(df['status'].unique()))
+            status_filter = st.selectbox("Filter by Status", ["All"] + list(df["status"].unique()))
         with col3:
             search = st.text_input("Search", placeholder="Name or Email...")
 
         # Apply filters
         filtered_df = df.copy()
         if segment_filter != "All":
-            filtered_df = filtered_df[filtered_df['customer_segment'] == segment_filter]
+            filtered_df = filtered_df[filtered_df["customer_segment"] == segment_filter]
         if status_filter != "All":
-            filtered_df = filtered_df[filtered_df['status'] == status_filter]
+            filtered_df = filtered_df[filtered_df["status"] == status_filter]
         if search:
             filtered_df = filtered_df[
-                filtered_df['name'].str.contains(search, case=False) |
-                filtered_df['email'].str.contains(search, case=False)
+                filtered_df["name"].str.contains(search, case=False) | filtered_df["email"].str.contains(search, case=False)
             ]
 
         st.markdown(f"**Showing {len(filtered_df)} customers**")
 
         # Display table
         st.dataframe(
-            filtered_df[['customer_id', 'name', 'email', 'customer_segment', 'status', 'total_spent']],
+            filtered_df[["customer_id", "name", "email", "customer_segment", "status", "total_spent"]],
             use_container_width=True,
             height=400,
-            column_config={
-                "customer_id": "ID",
-                "total_spent": st.column_config.NumberColumn("Total Spent", format="$%.2f")
-            }
+            column_config={"customer_id": "ID", "total_spent": st.column_config.NumberColumn("Total Spent", format="$%.2f")},
         )
 
         # Quick stats
-        st.caption(f"📊 {len(filtered_df)} customers • {filtered_df['customer_segment'].nunique()} segments • ${filtered_df['total_spent'].sum():,.2f} total spend")
+        st.caption(
+            f"📊 {len(filtered_df)} customers • {filtered_df['customer_segment'].nunique()} segments • ${filtered_df['total_spent'].sum():,.2f} total spend"
+        )
     else:
         st.warning("No customer data available.")
 
@@ -535,46 +557,46 @@ elif page == "📈 Analytics":
 
         with col1:
             st.markdown("### Churn by Segment")
-            if churn_data and 'churn_by_segment' in churn_data:
-                churn_seg = churn_data['churn_by_segment']
+            if churn_data and "churn_by_segment" in churn_data:
+                churn_seg = churn_data["churn_by_segment"]
                 fig = px.bar(
                     x=list(churn_seg.keys()),
                     y=list(churn_seg.values()),
                     title="",
-                    labels={'x': 'Segment', 'y': 'Churn Rate'},
+                    labels={"x": "Segment", "y": "Churn Rate"},
                     color=list(churn_seg.keys()),
                     color_discrete_sequence=px.colors.qualitative.Set3,
-                    text_auto='.1%'
+                    text_auto=".1%",
                 )
                 fig.update_layout(
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    font_color='rgba(255,255,255,0.7)',
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    font_color="rgba(255,255,255,0.7)",
                     showlegend=False,
-                    yaxis_tickformat='.0%'
+                    yaxis_tickformat=".0%",
                 )
                 st.plotly_chart(fig, use_container_width=True)
 
         with col2:
             st.markdown("### Risk Distribution")
-            if metrics and 'churn_kpis' in metrics:
-                high_risk = metrics['churn_kpis'].get('high_risk_customers', 0)
-                total = metrics.get('customer_kpis', {}).get('total_customers', 0)
-                risk_data = {'Low Risk': total - high_risk, 'High Risk': high_risk}
+            if metrics and "churn_kpis" in metrics:
+                high_risk = metrics["churn_kpis"].get("high_risk_customers", 0)
+                total = metrics.get("customer_kpis", {}).get("total_customers", 0)
+                risk_data = {"Low Risk": total - high_risk, "High Risk": high_risk}
                 fig = px.pie(
                     values=list(risk_data.values()),
                     names=list(risk_data.keys()),
                     title="",
                     color=list(risk_data.keys()),
-                    color_discrete_map={'Low Risk': '#10b981', 'High Risk': '#ef4444'},
-                    hole=0.4
+                    color_discrete_map={"Low Risk": "#10b981", "High Risk": "#ef4444"},
+                    hole=0.4,
                 )
                 fig.update_layout(
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    font_color='rgba(255,255,255,0.7)',
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    font_color="rgba(255,255,255,0.7)",
                     showlegend=True,
-                    legend=dict(orientation="h", yanchor="bottom", y=-0.2)
+                    legend=dict(orientation="h", yanchor="bottom", y=-0.2),
                 )
                 st.plotly_chart(fig, use_container_width=True)
 
@@ -583,23 +605,23 @@ elif page == "📈 Analytics":
 
         with col1:
             st.markdown("### Revenue by Segment")
-            if metrics and 'revenue_kpis' in metrics:
-                if 'segment_kpis' in metrics:
-                    seg_rev = metrics.get('segment_kpis', {}).get('segment_distribution', {})
+            if metrics and "revenue_kpis" in metrics:
+                if "segment_kpis" in metrics:
+                    seg_rev = metrics.get("segment_kpis", {}).get("segment_distribution", {})
                     if seg_rev:
                         fig = px.pie(
                             values=list(seg_rev.values()),
                             names=list(seg_rev.keys()),
                             title="",
                             color_discrete_sequence=px.colors.sequential.Greens_r,
-                            hole=0.4
+                            hole=0.4,
                         )
                         fig.update_layout(
-                            paper_bgcolor='rgba(0,0,0,0)',
-                            plot_bgcolor='rgba(0,0,0,0)',
-                            font_color='rgba(255,255,255,0.7)',
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            font_color="rgba(255,255,255,0.7)",
                             showlegend=True,
-                            legend=dict(orientation="h", yanchor="bottom", y=-0.2)
+                            legend=dict(orientation="h", yanchor="bottom", y=-0.2),
                         )
                         st.plotly_chart(fig, use_container_width=True)
 
@@ -607,22 +629,22 @@ elif page == "📈 Analytics":
             st.markdown("### Top Customers")
             if customers_data:
                 df = pd.DataFrame(customers_data)
-                top_customers = df.nlargest(10, 'total_spent')
+                top_customers = df.nlargest(10, "total_spent")
                 fig = px.bar(
                     top_customers,
-                    x='name',
-                    y='total_spent',
+                    x="name",
+                    y="total_spent",
                     title="",
-                    labels={'name': 'Customer', 'total_spent': 'Total Spend'},
-                    color='total_spent',
-                    color_continuous_scale='Blues'
+                    labels={"name": "Customer", "total_spent": "Total Spend"},
+                    color="total_spent",
+                    color_continuous_scale="Blues",
                 )
                 fig.update_layout(
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    font_color='rgba(255,255,255,0.7)',
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    font_color="rgba(255,255,255,0.7)",
                     showlegend=False,
-                    xaxis_tickangle=-45
+                    xaxis_tickangle=-45,
                 )
                 st.plotly_chart(fig, use_container_width=True)
 
@@ -635,6 +657,7 @@ elif page == "📈 Analytics":
         with col1:
             # Check if SHAP images exist
             import os
+
             if os.path.exists("shap_feature_importance.png"):
                 st.image("shap_feature_importance.png", caption="Feature Importance - SHAP Values", use_container_width=True)
             else:
@@ -666,17 +689,18 @@ elif page == "🎯 Retention":
         risk_filter = st.selectbox("Filter by Risk Level", ["All", "Critical", "High", "Medium", "Low"])
 
         if risk_filter != "All":
-            recs = [r for r in recs if r.get('risk_level') == risk_filter]
+            recs = [r for r in recs if r.get("risk_level") == risk_filter]
 
         st.markdown(f"**Showing {len(recs)} recommendations**")
 
         for rec in recs[:10]:
-            risk = rec.get('risk_level', 'Unknown')
-            risk_class = f"rec-{risk.lower()}" if risk.lower() in ['critical', 'high', 'medium', 'low'] else ""
-            recs_list = rec.get('recommendations', [])
-            rec_text = ', '.join(recs_list[:3]) if recs_list else "No recommendations"
+            risk = rec.get("risk_level", "Unknown")
+            risk_class = f"rec-{risk.lower()}" if risk.lower() in ["critical", "high", "medium", "low"] else ""
+            recs_list = rec.get("recommendations", [])
+            rec_text = ", ".join(recs_list[:3]) if recs_list else "No recommendations"
 
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div class="rec-card {risk_class}">
                 <strong>👤 {rec.get('customer_name', 'Unknown')}</strong>
                 <span style="float:right; font-size:0.8rem; color:rgba(255,255,255,0.4);">
@@ -686,7 +710,9 @@ elif page == "🎯 Retention":
                     {rec_text}
                 </span>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
     else:
         st.info("No recommendations available")
 

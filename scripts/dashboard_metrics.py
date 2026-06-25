@@ -1,5 +1,6 @@
 import sys
 import os
+
 sys.path.insert(0, os.getcwd())
 
 import pandas as pd
@@ -7,7 +8,7 @@ import json
 from dashboard_service.src.dashboard_service import DashboardService
 
 # Load data
-df = pd.read_csv('data/raw/customers_cleaned.csv')
+df = pd.read_csv("data/raw/customers_cleaned.csv")
 
 # Initialize dashboard service
 dashboard = DashboardService()
@@ -37,7 +38,7 @@ print(f"   Lost Revenue        : ₹{metrics['churn_kpis']['lost_revenue']:,.2f}
 print(f"   High-Risk Customers : {metrics['churn_kpis']['high_risk_customers']}")
 
 print("\n📊 SEGMENT KPIs:")
-for segment, count in metrics['segment_kpis']['segment_distribution'].items():
+for segment, count in metrics["segment_kpis"]["segment_distribution"].items():
     print(f"   {segment.capitalize():12} : {count}")
 
 print("\n" + "=" * 60)
