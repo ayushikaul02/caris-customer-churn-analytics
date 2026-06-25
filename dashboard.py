@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ==================== CUSTOM CSS ====================
+# Custom CSS
 st.markdown("""
 <style>
     .main-header {
@@ -84,17 +84,13 @@ st.markdown("""
         margin-bottom: 10px;
         border-left: 4px solid;
     }
-    .risk-critical { background: #fdedec; border-color: #e74c3c; }
-    .risk-high { background: #fdedec; border-color: #e74c3c; }
-    .risk-medium { background: #fef9e7; border-color: #f39c12; }
-    .risk-low { background: #ebf5fb; border-color: #3498db; }
 </style>
 """, unsafe_allow_html=True)
 
-# ==================== API CONFIG ====================
+# API Config
 API_URL = os.getenv("API_URL", "https://caris-api.onrender.com")
 
-# ==================== SESSION STATE ====================
+# Session State
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'token' not in st.session_state:
@@ -102,7 +98,7 @@ if 'token' not in st.session_state:
 if 'username' not in st.session_state:
     st.session_state.username = ""
 
-# ==================== LOGIN ====================
+# Login
 if not st.session_state.logged_in:
     st.markdown('<div class="login-container">', unsafe_allow_html=True)
     st.markdown('<div class="login-title">🔐 CARIS Login</div>', unsafe_allow_html=True)
@@ -132,10 +128,10 @@ if not st.session_state.logged_in:
     st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
-# ==================== HEADER ====================
+# Header
 st.markdown('<div class="main-header">📊 CARIS - Customer Churn Analytics</div>', unsafe_allow_html=True)
 
-# ==================== SIDEBAR ====================
+# Sidebar
 with st.sidebar:
     st.image("https://img.icons8.com/color/96/000000/data-configuration.png", width=80)
     st.title("Navigation")
@@ -156,7 +152,7 @@ with st.sidebar:
     st.caption(f"🕐 Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     st.caption("🚀 CARIS v1.0.0")
 
-# ==================== API HELPERS ====================
+# API Helpers
 headers = {"Authorization": f"Bearer {st.session_state.token}"} if st.session_state.token else {}
 
 @st.cache_data(ttl=300)
@@ -173,14 +169,14 @@ def fetch_data(endpoint, method="GET", data=None):
         st.error(f"⚠️ API Error: {e}")
         return None
 
-# ==================== DATA LOADING ====================
+# Load Data
 with st.spinner("Loading data..."):
     customers_data = fetch_data("/api/customers?limit=100")
     metrics = fetch_data("/api/dashboard/metrics")
     churn_data = fetch_data("/api/analytics/churn")
     segments = fetch_data("/api/analytics/customer-segments", method="POST")
 
-# ==================== OVERVIEW PAGE ====================
+# Pages
 if page == "🏠 Overview":
     st.markdown("## 📊 Executive Dashboard")
     
@@ -255,7 +251,6 @@ if page == "🏠 Overview":
                     )
                     st.plotly_chart(fig, use_container_width=True)
 
-# ==================== CUSTOMERS PAGE ====================
 elif page == "👥 Customers":
     st.markdown("## 👥 Customer Management")
     
@@ -290,7 +285,6 @@ elif page == "👥 Customers":
     else:
         st.warning("No customer data available.")
 
-# ==================== ANALYTICS PAGE ====================
 elif page == "📈 Analytics":
     st.markdown("## 📈 Churn & Revenue Analytics")
     
@@ -324,7 +318,6 @@ elif page == "📈 Analytics":
             )
             st.plotly_chart(fig, use_container_width=True)
 
-# ==================== RETENTION PAGE ====================
 elif page == "🎯 Retention":
     st.markdown("## 🎯 Retention Recommendations")
     
@@ -337,7 +330,6 @@ elif page == "🎯 Retention":
         
         for rec in recs[:10]:
             risk = rec.get('risk_level', 'Unknown')
-            risk_class = f"risk-{risk.lower()}" if risk.lower() in ['critical', 'high', 'medium', 'low'] else ""
             bg_color = "#fdedec" if risk in ['Critical', 'High'] else "#fef9e7" if risk == 'Medium' else "#ebf5fb"
             border_color = "#e74c3c" if risk in ['Critical', 'High'] else "#f39c12" if risk == 'Medium' else "#3498db"
             recs_list = rec.get('recommendations', [])
@@ -353,7 +345,6 @@ elif page == "🎯 Retention":
     else:
         st.info("No recommendations available")
 
-# ==================== REPORTS PAGE ====================
 elif page == "📊 Reports":
     st.markdown("## 📊 Generate Reports")
     
@@ -371,6 +362,5 @@ elif page == "📊 Reports":
             if excel:
                 st.success(f"✅ Report generated: {excel.get('filepath', '')}")
 
-# ==================== FOOTER ====================
 st.markdown("---")
 st.caption("© 2026 CARIS - Customer Churn Analytics & Retention Intelligence System")
