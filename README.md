@@ -4,6 +4,31 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io)
 [![Docker](https://img.shields.io/badge/Docker-24.0+-blue.svg)](https://docker.com)
+[![Render](https://img.shields.io/badge/Render-Deployed-purple.svg)](https://render.com)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI/CD Pipeline](https://github.com/ayushikaul02/caris-customer-churn-analytics/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/ayushikaul02/caris-customer-churn-analytics/actions/workflows/ci-cd.yml)
+[![codecov](https://codecov.io/gh/ayushikaul02/caris-customer-churn-analytics/branch/main/graph/badge.svg)](https://codecov.io/gh/ayushikaul02/caris-customer-churn-analytics)
+
+---
+
+## 🌐 Live Demo
+
+**🚀 Try it now:** [https://caris-api.onrender.com](https://caris-api.onrender.com)
+
+| Credential | Value |
+|------------|-------|
+| Username | `admin` |
+| Password | `admin123` |
+
+---
+
+
+# 📊 CARIS - Customer Churn Analytics & Retention Intelligence System
+
+[![Python](https://img.shields.io/badge/Python-3.12-blue.svg)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io)
+[![Docker](https://img.shields.io/badge/Docker-24.0+-blue.svg)](https://docker.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
