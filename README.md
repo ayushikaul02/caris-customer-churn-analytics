@@ -29,6 +29,32 @@ Built as a Summer Internship project, this system demonstrates full-stack develo
 | 🐳 **Dockerized** | Easy deployment with Docker |
 
 ---
+## 🔬 Model Explainability (SHAP Analysis)
+
+Understanding *why* customers churn is as important as predicting it. SHAP (SHapley Additive exPlanations) analysis reveals the key drivers of churn.
+
+### Feature Importance
+
+![SHAP Feature Importance](shap_feature_importance.png)
+
+![SHAP Feature Importance Bar](shap_feature_importance_bar.png)
+
+### Key Insights from SHAP Analysis
+
+| Feature | Impact on Churn |
+|---------|-----------------|
+| **Total Spent** | Strongest predictor - higher spending = lower churn |
+| **Monthly Charge** | Moderate impact - higher charges = more loyalty |
+| **Age** | Lower influence - consistent across age groups |
+| **Tenure** | Newer customers are at higher risk |
+
+### Business Implications
+
+1. **Focus on High-Value Customers**: Customers with higher total spent are more loyal
+2. **Target New Customers**: Tenure is a key indicator - focus retention on new customers
+3. **Monitor Monthly Charges**: Pricing strategy directly impacts churn
+
+> **Note**: SHAP analysis was performed using a Random Forest model trained on customer data. The model achieved 85% accuracy in predicting churn.
 
 ## 🏗️ System Architecture
 
