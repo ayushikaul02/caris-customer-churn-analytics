@@ -528,7 +528,7 @@ elif page == "👥 Customers":
 elif page == "📈 Analytics":
     st.markdown("## 📈 Churn & Revenue Analytics")
 
-    tab1, tab2 = st.tabs(["📉 Churn Analysis", "💰 Revenue Analysis"])
+    tab1, tab2, tab3 = st.tabs(["📉 Churn Analysis", "💰 Revenue Analysis", "🔬 Model Explainability"])
 
     with tab1:
         col1, col2 = st.columns(2)
@@ -584,7 +584,6 @@ elif page == "📈 Analytics":
         with col1:
             st.markdown("### Revenue by Segment")
             if metrics and 'revenue_kpis' in metrics:
-                # Try to get segment revenue from metrics
                 if 'segment_kpis' in metrics:
                     seg_rev = metrics.get('segment_kpis', {}).get('segment_distribution', {})
                     if seg_rev:
@@ -626,6 +625,36 @@ elif page == "📈 Analytics":
                     xaxis_tickangle=-45
                 )
                 st.plotly_chart(fig, use_container_width=True)
+
+    with tab3:
+        st.markdown("### 🔬 Model Explainability (SHAP Analysis)")
+        st.caption("SHAP (SHapley Additive exPlanations) shows which features most influence churn prediction")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            # Check if SHAP images exist
+            import os
+            if os.path.exists("shap_feature_importance.png"):
+                st.image("shap_feature_importance.png", caption="Feature Importance - SHAP Values", use_container_width=True)
+            else:
+                st.info("SHAP image not found. Run `python scripts/shap_analysis.py` to generate.")
+
+        with col2:
+            if os.path.exists("shap_feature_importance_bar.png"):
+                st.image("shap_feature_importance_bar.png", caption="Feature Importance - Bar Chart", use_container_width=True)
+            else:
+                st.info("SHAP image not found. Run `python scripts/shap_analysis.py` to generate.")
+
+        st.markdown("---")
+        st.markdown("#### 📊 Key Insights from SHAP Analysis")
+        st.markdown("""
+        - **Total Spent** is the strongest predictor of churn
+        - **Monthly Charge** significantly impacts retention
+        - **Age** has moderate influence on churn behavior
+        - Higher spending customers are more likely to stay
+        - Newer customers are at higher risk of churning
+        """)
 
 # -------------------- RETENTION --------------------
 elif page == "🎯 Retention":
