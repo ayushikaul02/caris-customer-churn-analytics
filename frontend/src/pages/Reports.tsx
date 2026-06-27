@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Typography, Box, Button, Grid, Paper, Alert } from '@mui/material';
+import { Typography, Box, Button, Paper } from '@mui/material';
 import Layout from '../components/Layout/Layout';
 import { reportsAPI } from '../api/client';
 
@@ -26,36 +26,32 @@ const Reports: React.FC = () => {
           📊 Reports
         </Typography>
 
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Monthly Business Report
-              </Typography>
-              <Button
-                variant="contained"
-                onClick={generateReport}
-                disabled={loading}
-                sx={{ mt: 1 }}
-              >
-                {loading ? 'Generating...' : 'Generate Report'}
-              </Button>
-            </Paper>
-          </Grid>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Monthly Business Report
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={generateReport}
+              disabled={loading}
+              sx={{ mt: 1 }}
+            >
+              {loading ? 'Generating...' : 'Generate Report'}
+            </Button>
+          </Paper>
 
           {report && (
-            <Grid item xs={12}>
-              <Paper sx={{ p: 3 }}>
-                <Typography variant="h6" gutterBottom>
-                  Report Summary
-                </Typography>
-                <pre style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>
-                  {JSON.stringify(report, null, 2)}
-                </pre>
-              </Paper>
-            </Grid>
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Report Summary
+              </Typography>
+              <pre style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>
+                {JSON.stringify(report, null, 2)}
+              </pre>
+            </Paper>
           )}
-        </Grid>
+        </Box>
       </Box>
     </Layout>
   );

@@ -1,5 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TextField, MenuItem, Select, FormControl, InputLabel, Chip } from '@mui/material';
+import {
+  Typography,
+  Box,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  TextField,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  Chip,
+} from '@mui/material';
 import Layout from '../components/Layout/Layout';
 import { customersAPI } from '../api/client';
 
@@ -54,7 +70,6 @@ const Customers: React.FC = () => {
           👥 Customer Management
         </Typography>
 
-        {/* Filters */}
         <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
           <TextField
             label="Search Customers"
@@ -85,7 +100,6 @@ const Customers: React.FC = () => {
           </Typography>
         </Box>
 
-        {/* Table */}
         <TableContainer component={Paper}>
           <Table>
             <TableHead>

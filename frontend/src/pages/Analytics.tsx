@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Box, Grid, Paper, Card, CardContent } from '@mui/material';
+import { Typography, Box, Paper } from '@mui/material';
 import Layout from '../components/Layout/Layout';
 import { analyticsAPI } from '../api/client';
 
@@ -30,8 +30,8 @@ const Analytics: React.FC = () => {
           📈 Churn & Revenue Analytics
         </Typography>
 
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+          <Box sx={{ flex: 1, minWidth: '300px' }}>
             <Paper sx={{ p: 2 }}>
               <Typography variant="h6" gutterBottom>
                 Churn by Segment
@@ -56,9 +56,9 @@ const Analytics: React.FC = () => {
                 </Box>
               )}
             </Paper>
-          </Grid>
+          </Box>
 
-          <Grid item xs={12} md={6}>
+          <Box sx={{ flex: 1, minWidth: '300px' }}>
             <Paper sx={{ p: 2 }}>
               <Typography variant="h6" gutterBottom>
                 Status Distribution
@@ -73,8 +73,8 @@ const Analytics: React.FC = () => {
                 </Box>
               )}
             </Paper>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </Box>
     </Layout>
   );

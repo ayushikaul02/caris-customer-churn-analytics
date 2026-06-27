@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Box, Grid, Paper, Card, CardContent, Chip, Button } from '@mui/material';
+import { Typography, Box, Paper, Chip } from '@mui/material';
 import Layout from '../components/Layout/Layout';
 import { retentionAPI } from '../api/client';
 
@@ -40,33 +40,32 @@ const Retention: React.FC = () => {
           🎯 Retention Recommendations
         </Typography>
 
-        <Grid container spacing={2}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {recommendations.slice(0, 10).map((rec: any, index) => (
-            <Grid item xs={12} key={index}>
-              <Paper
-                sx={{
-                  p: 2,
-                  borderLeft: `4px solid ${getRiskColor(rec.risk_level)}`,
-                  bgcolor: rec.risk_level === 'Critical' || rec.risk_level === 'High' ? '#fef2f2' : '#f8fafc',
-                }}
-              >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="subtitle1" fontWeight="bold">
-                    {rec.customer_name}
-                  </Typography>
-                  <Chip
-                    label={rec.risk_level}
-                    size="small"
-                    sx={{ bgcolor: getRiskColor(rec.risk_level), color: 'white' }}
-                  />
-                </Box>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  {rec.recommendations?.join(' • ')}
+            <Paper
+              key={index}
+              sx={{
+                p: 2,
+                borderLeft: `4px solid ${getRiskColor(rec.risk_level)}`,
+                bgcolor: rec.risk_level === 'Critical' || rec.risk_level === 'High' ? '#fef2f2' : '#f8fafc',
+              }}
+            >
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  {rec.customer_name}
                 </Typography>
-              </Paper>
-            </Grid>
+                <Chip
+                  label={rec.risk_level}
+                  size="small"
+                  sx={{ bgcolor: getRiskColor(rec.risk_level), color: 'white' }}
+                />
+              </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {rec.recommendations?.join(' • ')}
+              </Typography>
+            </Paper>
           ))}
-        </Grid>
+        </Box>
       </Box>
     </Layout>
   );
