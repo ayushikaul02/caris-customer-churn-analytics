@@ -11,7 +11,7 @@ sys.path.insert(0, current_dir)
 
 from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
@@ -232,24 +232,60 @@ async def startup_event():
     """Generate sample data on startup"""
     generate_sample_data()
 
-# ==================== LANDING PAGE ====================
+# ==================== ROOT - REDIRECT TO REACT APP ====================
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    """Serve the professional landing page"""
-    try:
-        with open("index.html", "r", encoding="utf-8") as f:
-            return f.read()
-    except FileNotFoundError:
-        return """
-        <html>
-            <body style="font-family: Arial; text-align: center; padding: 50px; background: #0a0a1a; color: white;">
-                <h1>📊 CARIS API</h1>
-                <p>Visit <a href="/docs" style="color: #667eea;">/docs</a> for API documentation</p>
-                <p>Frontend: <a href="https://caris-frontend.vercel.app" style="color: #667eea;">caris-frontend.vercel.app</a></p>
-            </body>
-        </html>
-        """
+    """Redirect to React frontend"""
+    return """
+    <html>
+        <head>
+            <meta http-equiv="refresh" content="0; url=https://caris-frontend.vercel.app" />
+            <title>CARIS - Redirecting...</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    text-align: center;
+                    padding: 100px;
+                    background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
+                    color: white;
+                }
+                .loader {
+                    display: inline-block;
+                    width: 50px;
+                    height: 50px;
+                    border: 5px solid rgba(255,255,255,0.1);
+                    border-top: 5px solid #667eea;
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                }
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+                a {
+                    color: #667eea;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="loader"></div>
+            <h1>📊 CARIS</h1>
+            <p>Redirecting to <a href="https://caris-frontend.vercel.app">CARIS Dashboard</a>...</p>
+            <p style="font-size: 0.8rem; opacity: 0.6; margin-top: 20px;">
+                API available at <a href="/docs">/docs</a> | 
+                <a href="/health">/health</a>
+            </p>
+        </body>
+    </html>
+    """
+
+# ==================== DASHBOARD REDIRECT ====================
+
+@app.get("/dashboard")
+async def dashboard_redirect():
+    """Redirect dashboard to React app"""
+    return RedirectResponse(url="https://caris-frontend.vercel.app")
 
 # ==================== HEALTH CHECK ====================
 
@@ -532,6 +568,70 @@ async def get_retention_recommendations(
                 })
         
         return result[:limit]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/retention/campaigns")
+async def get_promotional_campaigns(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
+):
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        data_path = os.path.join(base_dir, 'data', 'raw', 'customers_cleaned.csv')
+        
+        if not os.path.exists(data_path):
+            generate_sample_data()
+        
+        df = pd.read_csv(data_path)
+        return retention_engine.create_promotional_campaigns(df)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== REPORT ENDPOINTS ====================
+
+@app.get("/api/reports/monthly")
+async def get_monthly_report(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
+):
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        data_path = os.path.join(base_dir, 'data', 'raw', 'customers_cleaned.csv')
+        
+        if not os.path.exists(data_path):
+            generate_sample_data()
+        
+        df = pd.read_csv(data_path)
+        return report_service.generate_monthly_report(df)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/reports/excel")
+async def generate_excel_report(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
+):
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        data_path = os.path.join(base_dir, 'data', 'raw', 'customers_cleaned.csv')
+        
+        if not os.path.exists(data_path):
+            generate_sample_data()
+        
+        df = pd.read_csv(data_path)
+        filepath = report_service.generate_excel_report(df)
+        return {
+            "message": "Excel report generated successfully",
+            "filepath": filepath,
+            "download_url": f"/api/reports/download/{os.path.basename(filepath)}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/reports/available")
+async def get_available_reports(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
+):
+    try:
+        return {"reports": report_service.get_available_reports()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
