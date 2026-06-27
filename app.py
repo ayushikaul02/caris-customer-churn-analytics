@@ -232,53 +232,24 @@ async def startup_event():
     """Generate sample data on startup"""
     generate_sample_data()
 
-# ==================== ROOT - REDIRECT TO REACT APP ====================
+# ==================== ROOT - LANDING PAGE ====================
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    """Redirect to React frontend"""
-    return """
-    <html>
-        <head>
-            <meta http-equiv="refresh" content="0; url=https://caris-frontend.vercel.app" />
-            <title>CARIS - Redirecting...</title>
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    text-align: center;
-                    padding: 100px;
-                    background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
-                    color: white;
-                }
-                .loader {
-                    display: inline-block;
-                    width: 50px;
-                    height: 50px;
-                    border: 5px solid rgba(255,255,255,0.1);
-                    border-top: 5px solid #667eea;
-                    border-radius: 50%;
-                    animation: spin 1s linear infinite;
-                }
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-                a {
-                    color: #667eea;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="loader"></div>
-            <h1>📊 CARIS</h1>
-            <p>Redirecting to <a href="https://caris-frontend.vercel.app">CARIS Dashboard</a>...</p>
-            <p style="font-size: 0.8rem; opacity: 0.6; margin-top: 20px;">
-                API available at <a href="/docs">/docs</a> | 
-                <a href="/health">/health</a>
-            </p>
-        </body>
-    </html>
-    """
+    """Serve the professional landing page"""
+    try:
+        with open("index.html", "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return """
+        <html>
+            <body style="font-family: Arial; text-align: center; padding: 50px; background: #0a0a1a; color: white;">
+                <h1>📊 CARIS</h1>
+                <p>Visit <a href="/docs" style="color: #667eea;">/docs</a> for API documentation</p>
+                <p>Frontend: <a href="https://caris-frontend.vercel.app" style="color: #667eea;">caris-frontend.vercel.app</a></p>
+            </body>
+        </html>
+        """
 
 # ==================== DASHBOARD REDIRECT ====================
 
