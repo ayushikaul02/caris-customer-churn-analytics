@@ -33,12 +33,18 @@ from retention_engine.src.retention_service import RetentionEngine
 from dashboard_service.src.dashboard_service import DashboardService
 from reporting_service.src.report_service import ReportService
 
-# Using CSV data - database optional
-DB_AVAILABLE = False
-print("📊 Using CSV data mode")
+# Import database
+from database import get_db, engine, Base
+from sqlalchemy.orm import Session
 
 # Import data structures
 from backend.data_structures import PriorityQueue, Queue, Graph, HashMap, Trie
+
+# ==================== DATABASE MODELS ====================
+
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Text, DECIMAL
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
 
 # ==================== DATA GENERATION ====================
 
@@ -88,6 +94,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+# Mock users database (for CSV mode)
 fake_users_db = {
     "admin": {"username": "admin", "password": "admin123", "role": "admin"},
     "analyst": {"username": "analyst", "password": "analyst123", "role": "analyst"},
@@ -215,6 +222,14 @@ report_service = ReportService()
 
 @app.on_event("startup")
 async def startup_event():
+    """Create tables and generate sample data"""
+    try:
+        # Create database tables
+        Base.metadata.create_all(bind=engine)
+        logger.info("✅ Database tables created")
+    except Exception as e:
+        logger.warning(f"⚠️ Database initialization warning: {e}")
+    
     generate_sample_data()
 
 # ==================== ROOT ====================
@@ -251,6 +266,16 @@ async def health_check():
         "services": {"api": "running"}
     }
     
+    # Check database connection
+    try:
+        db = next(get_db())
+        db.execute(text("SELECT 1"))
+        health_status["services"]["database"] = "connected"
+        db.close()
+    except Exception as e:
+        health_status["services"]["database"] = f"error: {str(e)}"
+    
+    # Check data
     data_path = './data/raw/customers_cleaned.csv'
     if os.path.exists(data_path):
         try:
@@ -394,7 +419,6 @@ async def what_if_analysis(
         current_churn_rate = churned / total if total > 0 else 0
         
         # Simulate discount impact (simplified model)
-        # Higher discount = lower churn
         discount_effect = min(discount_percent / 100, 0.5)  # Max 50% reduction
         new_churn_rate = current_churn_rate * (1 - discount_effect * 0.5)
         
