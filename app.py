@@ -1,25 +1,29 @@
 import sys
 import os
+import random
+import pandas as pd
+from faker import Faker
+from datetime import datetime, timedelta
+import logging
+import jwt
+from passlib.context import CryptContext
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Query, Depends, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel
+from typing import Optional, List
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+# Load environment variables
+load_dotenv()
 
 # Add current directory to Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
-
-# In root app.py, add:
-from backend.data_structures import PriorityQueue, Queue, Graph, HashMap, Trie
-
-from fastapi import FastAPI, HTTPException, Query, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
-from fastapi.exceptions import RequestValidationError
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
-from typing import Optional
-import pandas as pd
-from datetime import datetime, timedelta
-import logging
-import jwt
-import os
 
 # Import services
 from customer_ingestion.src.ingestion_service import DataIngestionService
@@ -29,30 +33,115 @@ from retention_engine.src.retention_service import RetentionEngine
 from dashboard_service.src.dashboard_service import DashboardService
 from reporting_service.src.report_service import ReportService
 
+# Import database (optional - will work with CSV if DB not available)
+try:
+    from database import get_db, User, Customer, Prediction, ActivityLog, init_db
+    from database import SessionLocal
+    DB_AVAILABLE = True
+except ImportError:
+    DB_AVAILABLE = False
+    print("⚠️ Database module not available, using CSV only")
+
+# Import data structures
+from backend.data_structures import PriorityQueue, Queue, Graph, HashMap, Trie
+
+# ==================== DATA GENERATION ====================
+
+def generate_sample_data():
+    """Generate sample data if it doesn't exist"""
+    data_path = './data/raw/customers_cleaned.csv'
+    
+    if os.path.exists(data_path):
+        print(f"✅ Data already exists at {data_path}")
+        return
+    
+    print(f"📊 Generating sample data...")
+    os.makedirs('./data/raw', exist_ok=True)
+    
+    fake = Faker()
+    data = []
+    segments = ['basic', 'bronze', 'silver', 'gold', 'premium']
+    
+    for i in range(1000):
+        join_date = fake.date_between(start_date='-3y', end_date='today')
+        status = random.choices(['active', 'active', 'active', 'churned', 'inactive'], weights=[0.5, 0.2, 0.1, 0.1, 0.1])[0]
+        
+        data.append({
+            'customer_id': i + 1,
+            'name': fake.name(),
+            'email': fake.email(),
+            'phone': fake.phone_number(),
+            'gender': random.choice(['M', 'F']),
+            'age': random.randint(18, 75),
+            'city': fake.city(),
+            'state': fake.state(),
+            'country': 'USA',
+            'join_date': join_date.isoformat(),
+            'customer_segment': random.choice(segments),
+            'status': status,
+            'monthly_charge': round(random.uniform(20, 200), 2),
+            'total_spent': round(random.uniform(100, 5000), 2)
+        })
+    
+    df = pd.DataFrame(data)
+    df.to_csv(data_path, index=False)
+    print(f"✅ Generated {len(df)} customers at {data_path}")
+
 # ==================== AUTHENTICATION ====================
 
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+# Mock users database (for CSV mode)
 fake_users_db = {
     "admin": {"username": "admin", "password": "admin123", "role": "admin"},
-    "user": {"username": "user", "password": "user123", "role": "user"},
+    "analyst": {"username": "analyst", "password": "analyst123", "role": "analyst"},
+    "manager": {"username": "manager", "password": "manager123", "role": "manager"},
+    "viewer": {"username": "viewer", "password": "viewer123", "role": "viewer"}
 }
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-class User(BaseModel):
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+class UserLogin(BaseModel):
     username: str
     password: str
-
 
 class Token(BaseModel):
     access_token: str
     token_type: str
 
+class CustomerCreate(BaseModel):
+    name: str
+    email: str
+    phone: Optional[str] = None
+    gender: Optional[str] = None
+    age: Optional[int] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    join_date: str
+    customer_segment: Optional[str] = "basic"
+    monthly_charge: Optional[float] = 0.0
+
+class CustomerUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    gender: Optional[str] = None
+    age: Optional[int] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    customer_segment: Optional[str] = None
+    status: Optional[str] = None
+    monthly_charge: Optional[float] = None
 
 security = HTTPBearer()
-
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -63,7 +152,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
-
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
@@ -78,12 +166,20 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-
 def get_current_user(username: str = Depends(verify_token)):
     if username not in fake_users_db:
         raise HTTPException(status_code=401, detail="User not found")
     return fake_users_db[username]
 
+def require_role(allowed_roles: List[str]):
+    def decorator(current_user: dict = Depends(get_current_user)):
+        if current_user["role"] not in allowed_roles:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Access denied. Required roles: {allowed_roles}"
+            )
+        return current_user
+    return decorator
 
 # ==================== FASTAPI APP ====================
 
@@ -93,21 +189,27 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="CARIS API",
     description="Customer Churn Analytics & Retention Intelligence System",
-    version="1.0.0",
+    version="2.0.0",
     docs_url="/docs",
-    redoc_url="/redoc",
+    redoc_url="/redoc"
 )
 
-# Configure CORS
+# ==================== CORS ====================
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "https://caris-frontend.vercel.app",
+        "*"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize services
+# ==================== INITIALIZE SERVICES ====================
+
 ingestion_service = DataIngestionService()
 transformation_service = DataTransformationService()
 analytics_service = CustomerAnalyticsService()
@@ -115,307 +217,222 @@ retention_engine = RetentionEngine()
 dashboard_service = DashboardService()
 report_service = ReportService()
 
-# ==================== MODELS ====================
+# ==================== STARTUP EVENT ====================
 
-
-class CustomerCreate(BaseModel):
-    name: str
-    email: str
-    phone: Optional[str] = None
-    gender: Optional[str] = None
-    age: Optional[int] = None
-    city: Optional[str] = None
-    state: Optional[str] = None
-    join_date: str
-    customer_segment: Optional[str] = "basic"
-    monthly_charge: Optional[float] = 0.0
-
-
-class CustomerUpdate(BaseModel):
-    name: Optional[str] = None
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    gender: Optional[str] = None
-    age: Optional[int] = None
-    city: Optional[str] = None
-    state: Optional[str] = None
-    customer_segment: Optional[str] = None
-    status: Optional[str] = None
-    monthly_charge: Optional[float] = None
-
-
-# ==================== EXCEPTION HANDLERS ====================
-
-
-@app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
-    logger.error(f"Error: {str(exc)}")
-    return JSONResponse(
-        status_code=500, content={"error": "Internal Server Error", "message": str(exc), "path": request.url.path}
-    )
-
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request, exc):
-    return JSONResponse(
-        status_code=422, content={"error": "Validation Error", "details": exc.errors(), "path": request.url.path}
-    )
-
+@app.on_event("startup")
+async def startup_event():
+    """Generate sample data on startup"""
+    generate_sample_data()
 
 # ==================== ROOT - LANDING PAGE ====================
 
-
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    """Serve the landing page"""
+    """Serve the professional landing page"""
     try:
         with open("index.html", "r", encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError:
         return """
         <html>
-            <body style="font-family: Arial; text-align: center; padding: 50px;">
-                <h1>📊 CARIS API</h1>
-                <p>Visit <a href="/docs">/docs</a> for API documentation</p>
-                <p>Or <a href="/dashboard">/dashboard</a> for the dashboard</p>
+            <body style="font-family: Arial; text-align: center; padding: 50px; background: #0a0a1a; color: white;">
+                <h1>📊 CARIS</h1>
+                <p>Visit <a href="/docs" style="color: #667eea;">/docs</a> for API documentation</p>
+                <p>Frontend: <a href="https://caris-frontend.vercel.app" style="color: #667eea;">caris-frontend.vercel.app</a></p>
             </body>
         </html>
         """
 
-
-# ==================== DASHBOARD ====================
-
+# ==================== DASHBOARD REDIRECT ====================
 
 @app.get("/dashboard")
-async def dashboard():
-    """Redirect to Streamlit dashboard"""
-    return FileResponse("dashboard.py")
+async def dashboard_redirect():
+    """Redirect dashboard to React app"""
+    return RedirectResponse(url="https://caris-frontend.vercel.app")
 
+# ==================== HEALTH CHECK ====================
 
-# ==================== AUTHENTICATION ENDPOINTS ====================
-
-
-@app.post("/api/auth/login", tags=["Authentication"])
-async def login(user: User):
-    if user.username not in fake_users_db:
-        raise HTTPException(status_code=401, detail="Invalid username or password")
-
-    if fake_users_db[user.username]["password"] != user.password:
-        raise HTTPException(status_code=401, detail="Invalid username or password")
-
-    access_token = create_access_token(data={"sub": user.username})
-    return {"access_token": access_token, "token_type": "bearer", "role": fake_users_db[user.username]["role"]}
-
-
-@app.get("/api/auth/me", tags=["Authentication"])
-async def get_current_user_info(current_user: dict = Depends(get_current_user)):
-    return {"username": current_user["username"], "role": current_user["role"]}
-
-
-# ==================== HEALTH ====================
-
-
-@app.get("/health", tags=["Root"])
+@app.get("/health")
 async def health_check():
+    """Detailed health check"""
     health_status = {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "services": {"api": "running", "data": "loaded" if os.path.exists("./data/raw/customers_cleaned.csv") else "missing"},
+        "services": {"api": "running"}
     }
-
-    try:
-        df = pd.read_csv("./data/raw/customers_cleaned.csv")
-        health_status["data_stats"] = {"total_customers": len(df), "columns": list(df.columns)[:10]}
-    except:
-        health_status["data_stats"] = {"error": "Data not available"}
-
+    
+    # Check if data exists
+    data_path = './data/raw/customers_cleaned.csv'
+    if os.path.exists(data_path):
+        try:
+            df = pd.read_csv(data_path)
+            health_status["data_stats"] = {
+                "total_customers": len(df)
+            }
+            health_status["services"]["data"] = "loaded"
+        except Exception as e:
+            health_status["services"]["data"] = f"error: {str(e)}"
+    else:
+        health_status["services"]["data"] = "missing"
+    
     return health_status
 
+# ==================== AUTHENTICATION ENDPOINTS ====================
+
+@app.post("/api/auth/login")
+async def login(user: UserLogin):
+    if user.username not in fake_users_db:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    
+    if fake_users_db[user.username]["password"] != user.password:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    
+    access_token = create_access_token(data={"sub": user.username})
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "role": fake_users_db[user.username]["role"]
+    }
+
+@app.get("/api/auth/me")
+async def get_current_user_info(current_user: dict = Depends(get_current_user)):
+    return {"username": current_user["username"], "role": current_user["role"]}
 
 # ==================== CUSTOMER ENDPOINTS ====================
 
-
-@app.get("/api/customers", tags=["Customers"])
+@app.get("/api/customers")
 async def get_customers(
-    limit: int = Query(100, description="Number of customers to return"), current_user: dict = Depends(get_current_user)
+    limit: int = Query(100),
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager", "viewer"]))
 ):
     try:
-        df = pd.read_csv("./data/raw/customers_cleaned.csv")
-        return df.head(limit).to_dict("records")
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
+        return df.head(limit).to_dict('records')
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@app.get("/api/customers/{customer_id}", tags=["Customers"])
-async def get_customer(customer_id: int, current_user: dict = Depends(get_current_user)):
+@app.get("/api/customers/{customer_id}")
+async def get_customer(
+    customer_id: int,
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager", "viewer"]))
+):
     try:
-        df = pd.read_csv("./data/raw/customers_cleaned.csv")
-        customer = df[df["customer_id"] == customer_id]
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
+        customer = df[df['customer_id'] == customer_id]
         if customer.empty:
             raise HTTPException(status_code=404, detail="Customer not found")
         return customer.iloc[0].to_dict()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 # ==================== ANALYTICS ENDPOINTS ====================
 
-
-@app.get("/api/analytics/churn", tags=["Analytics"])
-async def analyze_churn(current_user: dict = Depends(get_current_user)):
+@app.get("/api/analytics/churn")
+async def analyze_churn(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
+):
     try:
-        df = pd.read_csv("./data/raw/customers_cleaned.csv")
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
         return analytics_service.analyze_churn(df)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@app.get("/api/analytics/revenue", tags=["Analytics"])
-async def analyze_revenue(current_user: dict = Depends(get_current_user)):
+@app.get("/api/analytics/revenue")
+async def analyze_revenue(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
+):
     try:
-        df = pd.read_csv("./data/raw/customers_cleaned.csv")
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
         return analytics_service.analyze_revenue(df)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@app.post("/api/analytics/customer-segments", tags=["Analytics"])
-async def get_customer_segments(current_user: dict = Depends(get_current_user)):
+@app.post("/api/analytics/customer-segments")
+async def get_customer_segments(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
+):
     try:
-        df = pd.read_csv("./data/raw/customers_cleaned.csv")
-        if "tenure_days" not in df.columns:
-            if "join_date" in df.columns:
-                df["join_date"] = pd.to_datetime(df["join_date"])
-                df["tenure_days"] = (datetime.now() - df["join_date"]).dt.days
-            else:
-                df["tenure_days"] = 365
-
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
         segmented_df = analytics_service.segment_customers(df)
         return {
             "status": "success",
-            "segments": segmented_df["segment_label"].value_counts().to_dict(),
-            "details": segmented_df[["customer_id", "customer_segment_cluster", "segment_label"]].head(100).to_dict("records"),
+            "segments": segmented_df['segment_label'].value_counts().to_dict(),
+            "details": segmented_df[['customer_id', 'customer_segment_cluster', 'segment_label']].head(100).to_dict('records')
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 # ==================== DASHBOARD ENDPOINTS ====================
 
-
-@app.get("/api/dashboard/metrics", tags=["Dashboard"])
-async def get_dashboard_metrics(current_user: dict = Depends(get_current_user)):
+@app.get("/api/dashboard/metrics")
+async def get_dashboard_metrics(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager", "viewer"]))
+):
     try:
-        df = pd.read_csv("./data/raw/customers_cleaned.csv")
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
         return dashboard_service.get_dashboard_metrics(df)
     except Exception as e:
+        logger.error(f"Dashboard metrics error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@app.get("/api/dashboard/revenue", tags=["Dashboard"])
-async def get_revenue_dashboard(current_user: dict = Depends(get_current_user)):
+@app.get("/api/dashboard/revenue")
+async def get_revenue_dashboard(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager", "viewer"]))
+):
     try:
-        df = pd.read_csv("./data/raw/customers_cleaned.csv")
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
         return dashboard_service.create_revenue_dashboard(df)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@app.get("/api/dashboard/customer", tags=["Dashboard"])
-async def get_customer_dashboard(current_user: dict = Depends(get_current_user)):
+@app.get("/api/dashboard/customer")
+async def get_customer_dashboard(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager", "viewer"]))
+):
     try:
-        df = pd.read_csv("./data/raw/customers_cleaned.csv")
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
         return dashboard_service.create_customer_dashboard(df)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@app.get("/api/dashboard/churn", tags=["Dashboard"])
-async def get_churn_dashboard(current_user: dict = Depends(get_current_user)):
+@app.get("/api/dashboard/churn")
+async def get_churn_dashboard(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager", "viewer"]))
+):
     try:
-        df = pd.read_csv("./data/raw/customers_cleaned.csv")
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
         return dashboard_service.create_churn_dashboard(df)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 # ==================== RETENTION ENDPOINTS ====================
 
-
-@app.post("/api/retention/recommendations", tags=["Retention"])
+@app.post("/api/retention/recommendations")
 async def get_retention_recommendations(
-    limit: int = Query(50, description="Number of recommendations to return"), current_user: dict = Depends(get_current_user)
+    limit: int = Query(50),
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
 ):
     try:
-        df = pd.read_csv("./data/raw/customers_cleaned.csv")
-        if "risk_level" not in df.columns:
-            df = analytics_service.calculate_risk_score(df)
-
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
         recommended_df = retention_engine.generate_recommendations(df)
-
         result = []
         for _, row in recommended_df.iterrows():
-            rec_data = row["recommendations"]
+            rec_data = row['recommendations']
             if isinstance(rec_data, dict):
-                result.append(
-                    {
-                        "customer_id": int(row["customer_id"]),
-                        "customer_name": rec_data.get("customer_name", row.get("name", "Unknown")),
-                        "risk_level": row.get("risk_level", "Unknown"),
-                        "priority": rec_data.get("priority", "low"),
-                        "recommendations": rec_data.get("recommendations", []),
-                        "urgency": rec_data.get("urgency", "soon"),
-                    }
-                )
+                result.append({
+                    'customer_id': int(row['customer_id']),
+                    'customer_name': rec_data.get('customer_name', row.get('name', 'Unknown')),
+                    'risk_level': row.get('risk_level', 'Unknown'),
+                    'priority': rec_data.get('priority', 'low'),
+                    'recommendations': rec_data.get('recommendations', []),
+                    'urgency': rec_data.get('urgency', 'soon')
+                })
         return result[:limit]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@app.get("/api/retention/campaigns", tags=["Retention"])
-async def get_promotional_campaigns(current_user: dict = Depends(get_current_user)):
-    try:
-        df = pd.read_csv("./data/raw/customers_cleaned.csv")
-        return retention_engine.create_promotional_campaigns(df)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ==================== REPORT ENDPOINTS ====================
-
-
-@app.get("/api/reports/monthly", tags=["Reports"])
-async def get_monthly_report(current_user: dict = Depends(get_current_user)):
-    try:
-        df = pd.read_csv("./data/raw/customers_cleaned.csv")
-        return report_service.generate_monthly_report(df)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/reports/excel", tags=["Reports"])
-async def generate_excel_report(current_user: dict = Depends(get_current_user)):
-    try:
-        df = pd.read_csv("./data/raw/customers_cleaned.csv")
-        filepath = report_service.generate_excel_report(df)
-        return {
-            "message": "Excel report generated successfully",
-            "filepath": filepath,
-            "download_url": f"/api/reports/download/{os.path.basename(filepath)}",
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/reports/available", tags=["Reports"])
-async def get_available_reports(current_user: dict = Depends(get_current_user)):
-    try:
-        return {"reports": report_service.get_available_reports()}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+# ==================== MAIN ====================
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=8000)
