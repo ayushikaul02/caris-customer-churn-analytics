@@ -1,0 +1,31 @@
+[33mc98dc62[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Force add all src folders and init files for deployment
+[33m2fec9c3[m Phase 2: PostgreSQL + RBAC integration
+[33mb6e5356[m Update .gitignore with comprehensive rules
+[33m4c75ddd[m Restore landing page at root, keep /dashboard redirect
+[33m1450523[m Fix Reports page - use Box with flexbox instead of Grid
+[33m92ad919[m Use Box with flexbox instead of Grid for all pages
+[33m1f08c5e[m Add full pages for Customers, Analytics, Retention, Reports
+[33m1cb9e3b[m Redirect root and dashboard to React app
+[33mcf0986b[m Complete app.py with auto data generation and fallback
+[33m5a4f07d[m Phase 1: React frontend with TypeScript, Material UI, authentication
+[33m21bcde4[m Complete professional landing page and requirements
+[33m20c3da6[m Fix CI/CD workflow and tests
+[33mc81c3f9[m Format code with black
+[33m4ee9b8f[m Add CI/CD badges to README
+[33m7a39821[m Add CI/CD pipeline with GitHub Actions
+[33m4c1556e[m Add SHAP visualizations to dashboard and README
+[33m47af72b[m Add SHAP visualizations to dashboard and README
+[33m9809da1[m Add SHAP explainability visualizations and model card
+[33mb7e5ccb[m Add SHAP explainability and model card
+[33maa35a11[m Enterprise dashboard with business impact metrics
+[33me5073dc[m Fixed CSS vendor prefixes for clean code
+[33ma054716[m Fix: Add missing HTTPAuthorizationCredentials import
+[33maa13f54[m Add landing page, dashboard, and complete CARIS deployment
+[33mec88c1c[m Add landing page, dashboard, and deployment config
+[33m848b557[m Add Streamlit dashboard for production deployment
+[33md8f3a25[m Add PyJWT for authentication
+[33m9522bf6[m Use pre-built package versions for Render
+[33m124bb49[m Update requirements.txt for Render deployment
+[33mf21db35[m Add runtime.txt to specify Python 3.12
+[33meb3534a[m Add README for CARIS project documentation
+[33mf977018[m Initial commit: CARIS Customer Churn Analytics System

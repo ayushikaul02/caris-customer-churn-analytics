@@ -33,14 +33,9 @@ from retention_engine.src.retention_service import RetentionEngine
 from dashboard_service.src.dashboard_service import DashboardService
 from reporting_service.src.report_service import ReportService
 
-# Import database (optional - will work with CSV if DB not available)
-try:
-    from database import get_db, User, Customer, Prediction, ActivityLog, init_db
-    from database import SessionLocal
-    DB_AVAILABLE = True
-except ImportError:
-    DB_AVAILABLE = False
-    print("⚠️ Database module not available, using CSV only")
+# Using CSV data - database optional
+DB_AVAILABLE = False
+print("📊 Using CSV data mode")
 
 # Import data structures
 from backend.data_structures import PriorityQueue, Queue, Graph, HashMap, Trie
