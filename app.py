@@ -88,7 +88,6 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# Mock users database (for CSV mode)
 fake_users_db = {
     "admin": {"username": "admin", "password": "admin123", "role": "admin"},
     "analyst": {"username": "analyst", "password": "analyst123", "role": "analyst"},
@@ -216,14 +215,12 @@ report_service = ReportService()
 
 @app.on_event("startup")
 async def startup_event():
-    """Generate sample data on startup"""
     generate_sample_data()
 
-# ==================== ROOT - LANDING PAGE ====================
+# ==================== ROOT ====================
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    """Serve the professional landing page"""
     try:
         with open("index.html", "r", encoding="utf-8") as f:
             return f.read()
@@ -242,28 +239,23 @@ async def root():
 
 @app.get("/dashboard")
 async def dashboard_redirect():
-    """Redirect dashboard to React app"""
     return RedirectResponse(url="https://caris-frontend.vercel.app")
 
 # ==================== HEALTH CHECK ====================
 
 @app.get("/health")
 async def health_check():
-    """Detailed health check"""
     health_status = {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "services": {"api": "running"}
     }
     
-    # Check if data exists
     data_path = './data/raw/customers_cleaned.csv'
     if os.path.exists(data_path):
         try:
             df = pd.read_csv(data_path)
-            health_status["data_stats"] = {
-                "total_customers": len(df)
-            }
+            health_status["data_stats"] = {"total_customers": len(df)}
             health_status["services"]["data"] = "loaded"
         except Exception as e:
             health_status["services"]["data"] = f"error: {str(e)}"
@@ -272,7 +264,7 @@ async def health_check():
     
     return health_status
 
-# ==================== AUTHENTICATION ENDPOINTS ====================
+# ==================== AUTHENTICATION ====================
 
 @app.post("/api/auth/login")
 async def login(user: UserLogin):
@@ -293,7 +285,7 @@ async def login(user: UserLogin):
 async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     return {"username": current_user["username"], "role": current_user["role"]}
 
-# ==================== CUSTOMER ENDPOINTS ====================
+# ==================== CUSTOMERS ====================
 
 @app.get("/api/customers")
 async def get_customers(
@@ -320,7 +312,7 @@ async def get_customer(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# ==================== ANALYTICS ENDPOINTS ====================
+# ==================== ANALYTICS ====================
 
 @app.get("/api/analytics/churn")
 async def analyze_churn(
@@ -357,7 +349,7 @@ async def get_customer_segments(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# ==================== DASHBOARD ENDPOINTS ====================
+# ==================== DASHBOARD ====================
 
 @app.get("/api/dashboard/metrics")
 async def get_dashboard_metrics(
@@ -400,7 +392,7 @@ async def get_churn_dashboard(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# ==================== RETENTION ENDPOINTS ====================
+# ==================== RETENTION ====================
 
 @app.post("/api/retention/recommendations")
 async def get_retention_recommendations(
@@ -423,6 +415,42 @@ async def get_retention_recommendations(
                     'urgency': rec_data.get('urgency', 'soon')
                 })
         return result[:limit]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== REPORTS ====================
+
+@app.get("/api/reports/monthly")
+async def get_monthly_report(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
+):
+    try:
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
+        return report_service.generate_monthly_report(df)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/reports/excel")
+async def generate_excel_report(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
+):
+    try:
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
+        filepath = report_service.generate_excel_report(df)
+        return {
+            "message": "Excel report generated successfully",
+            "filepath": filepath,
+            "download_url": f"/api/reports/download/{os.path.basename(filepath)}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/reports/available")
+async def get_available_reports(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
+):
+    try:
+        return {"reports": report_service.get_available_reports()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
