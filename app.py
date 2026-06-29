@@ -349,7 +349,7 @@ async def get_customer_segments(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# ================ NEW: CLV ENDPOINT ================
+# ==================== CLV ENDPOINT ====================
 
 @app.get("/api/analytics/clv")
 async def calculate_clv(
@@ -362,7 +362,7 @@ async def calculate_clv(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# ================ NEW: REVENUE IMPACT ENDPOINT ================
+# ==================== REVENUE IMPACT ENDPOINT ====================
 
 @app.get("/api/analytics/revenue-impact")
 async def get_revenue_impact(
@@ -372,6 +372,47 @@ async def get_revenue_impact(
         df = pd.read_csv('./data/raw/customers_cleaned.csv')
         impact = analytics_service.calculate_revenue_impact(df)
         return impact
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== WHAT-IF ANALYSIS ENDPOINT ====================
+
+@app.post("/api/analytics/what-if")
+async def what_if_analysis(
+    discount_percent: float = Query(..., description="Discount percentage (0-50)", ge=0, le=50),
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
+):
+    """
+    What-if analysis: Simulate churn reduction based on discount offer
+    """
+    try:
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
+        
+        # Calculate current churn rate
+        total = len(df)
+        churned = len(df[df['status'] == 'churned'])
+        current_churn_rate = churned / total if total > 0 else 0
+        
+        # Simulate discount impact (simplified model)
+        # Higher discount = lower churn
+        discount_effect = min(discount_percent / 100, 0.5)  # Max 50% reduction
+        new_churn_rate = current_churn_rate * (1 - discount_effect * 0.5)
+        
+        # Calculate impact
+        customers_saved = int((current_churn_rate - new_churn_rate) * total)
+        avg_revenue = df['total_spent'].mean()
+        revenue_saved = customers_saved * avg_revenue
+        
+        return {
+            "discount_percent": discount_percent,
+            "current_churn_rate": round(current_churn_rate * 100, 2),
+            "predicted_churn_rate": round(new_churn_rate * 100, 2),
+            "churn_reduction": round((current_churn_rate - new_churn_rate) * 100, 2),
+            "customers_saved": customers_saved,
+            "revenue_saved": round(revenue_saved, 2),
+            "recommendation": "Highly effective" if discount_percent >= 20 else "Moderately effective" if discount_percent >= 10 else "Low impact",
+            "roi": round((revenue_saved / (customers_saved * 50)) if customers_saved > 0 else 0, 2)
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
