@@ -349,6 +349,32 @@ async def get_customer_segments(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# ================ NEW: CLV ENDPOINT ================
+
+@app.get("/api/analytics/clv")
+async def calculate_clv(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
+):
+    try:
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
+        clv_df = analytics_service.calculate_clv(df)
+        return clv_df[['customer_id', 'clv', 'clv_category']].head(100).to_dict('records')
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ================ NEW: REVENUE IMPACT ENDPOINT ================
+
+@app.get("/api/analytics/revenue-impact")
+async def get_revenue_impact(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
+):
+    try:
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
+        impact = analytics_service.calculate_revenue_impact(df)
+        return impact
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # ==================== DASHBOARD ====================
 
 @app.get("/api/dashboard/metrics")
