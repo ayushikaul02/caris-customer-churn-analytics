@@ -1,6 +1,7 @@
 import sys
 import os
 import random
+import numpy as np
 import pandas as pd
 from faker import Faker
 from datetime import datetime, timedelta
@@ -17,6 +18,11 @@ from pydantic import BaseModel
 from typing import Optional, List
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+# SHAP and ML imports
+import shap
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
 
 # Load environment variables
 load_dotenv()
@@ -181,6 +187,17 @@ def require_role(allowed_roles: List[str]):
             )
         return current_user
     return decorator
+
+# ==================== SHAP HELPER ====================
+
+def get_recommendation(churn_prob):
+    """Get recommendation based on churn probability"""
+    if churn_prob > 0.7:
+        return "🚨 Immediate action required: Offer personalized discount and schedule customer success call"
+    elif churn_prob > 0.4:
+        return "📞 Reach out with engagement email and loyalty offer"
+    else:
+        return "✅ Customer is likely to stay. Send periodic newsletter."
 
 # ==================== FASTAPI APP ====================
 
@@ -437,6 +454,114 @@ async def what_if_analysis(
             "recommendation": "Highly effective" if discount_percent >= 20 else "Moderately effective" if discount_percent >= 10 else "Low impact",
             "roi": round((revenue_saved / (customers_saved * 50)) if customers_saved > 0 else 0, 2)
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== SHAP EXPLANATION ENDPOINT ====================
+
+@app.post("/api/explain/churn")
+async def explain_churn(
+    customer_id: int = Query(..., description="Customer ID to explain"),
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
+):
+    """
+    Get SHAP explanation for a specific customer
+    Returns: Why this customer may churn
+    """
+    try:
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
+        
+        # Get customer
+        customer = df[df['customer_id'] == customer_id]
+        if customer.empty:
+            raise HTTPException(status_code=404, detail="Customer not found")
+        
+        # Prepare features
+        features = ['total_spent', 'monthly_charge', 'age', 'tenure_days']
+        available_features = [f for f in features if f in df.columns]
+        
+        if not available_features:
+            return {
+                "customer_id": customer_id,
+                "churn_probability": 0.5,
+                "risk_level": "Unknown",
+                "top_factors": [],
+                "explanation": "Not enough data to explain"
+            }
+        
+        # Prepare data
+        df['churned'] = (df['status'] == 'churned').astype(int)
+        X = df[available_features].fillna(0)
+        y = df['churned']
+        
+        # Train model
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.3, random_state=42, stratify=y
+        )
+        
+        model = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42)
+        model.fit(X_train, y_train)
+        
+        # SHAP Explanation
+        explainer = shap.TreeExplainer(model)
+        shap_values = explainer.shap_values(X_test)
+        
+        # Get customer's features
+        customer_features = customer[available_features].iloc[0].values
+        
+        # Get SHAP values for this customer
+        shap_values_customer = explainer.shap_values(customer_features.reshape(1, -1))
+        
+        if isinstance(shap_values_customer, list):
+            shap_values_customer = shap_values_customer[1]
+        
+        # Create explanation
+        top_indices = np.argsort(np.abs(shap_values_customer[0]))[-3:][::-1]
+        top_features = []
+        
+        for idx in top_indices:
+            feature_name = available_features[idx]
+            value = customer_features[idx]
+            shap_value = shap_values_customer[0][idx]
+            
+            if shap_value > 0:
+                impact = f"{feature_name} is {value:.2f} (increases churn risk)"
+            else:
+                impact = f"{feature_name} is {value:.2f} (decreases churn risk)"
+            
+            top_features.append({
+                "feature": feature_name,
+                "value": round(float(value), 2),
+                "shap_value": round(float(shap_value), 4),
+                "impact": impact
+            })
+        
+        # Calculate churn probability
+        churn_prob = model.predict_proba(customer_features.reshape(1, -1))[0][1]
+        
+        # Generate business-friendly explanation
+        if churn_prob > 0.7:
+            risk_level = "HIGH"
+            explanation = "This customer has a high risk of churning. "
+            if top_features:
+                explanation += f"Top factors: {top_features[0]['feature']} and {top_features[1]['feature'] if len(top_features) > 1 else 'others'}."
+        elif churn_prob > 0.4:
+            risk_level = "MEDIUM"
+            explanation = "This customer has a moderate risk of churning."
+        else:
+            risk_level = "LOW"
+            explanation = "This customer has a low risk of churning."
+        
+        return {
+            "customer_id": customer_id,
+            "customer_name": customer.iloc[0]['name'],
+            "churn_probability": round(float(churn_prob), 4),
+            "risk_level": risk_level,
+            "top_factors": top_features,
+            "explanation": explanation,
+            "recommendation": get_recommendation(churn_prob)
+        }
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
