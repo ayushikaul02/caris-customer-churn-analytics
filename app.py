@@ -20,9 +20,9 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 # SHAP and ML imports
-import shap
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
+#import shap
+#from sklearn.ensemble import RandomForestClassifier
+#from sklearn.model_selection import train_test_split
 
 # Load environment variables
 load_dotenv()
