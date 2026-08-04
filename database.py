@@ -8,10 +8,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Get DATABASE_URL from .env
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./caris.db")
 
-# Create engine
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+# Create engine - SQLite specific settings
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        DATABASE_URL, 
+        connect_args={"check_same_thread": False},
+        pool_pre_ping=True
+    )
+else:
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
