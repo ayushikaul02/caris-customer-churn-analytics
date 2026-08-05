@@ -1,17 +1,94 @@
-import React from 'react';
-import { Typography, Box } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import {
+  Typography,
+  Box,
+  Paper,
+  Chip,
+  CircularProgress,
+} from '@mui/material';
 import Layout from '../components/Layout/Layout';
+import { retentionAPI } from '../api/client';
 
 const Retention: React.FC = () => {
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await retentionAPI.getRecommendations();
+        setRecommendations(response.data);
+      } catch (error) {
+        console.error('Error fetching recommendations:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const getRiskColor = (risk: string) => {
+    const colors: Record<string, string> = {
+      critical: '#ef4444',
+      high: '#ef4444',
+      medium: '#f59e0b',
+      low: '#10b981',
+    };
+    return colors[risk?.toLowerCase()] || '#6b7280';
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
+          <CircularProgress />
+        </Box>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <Box sx={{ p: 3 }}>
         <Typography variant="h4" gutterBottom>
-          🎯 Retention
+          🎯 Retention Recommendations
         </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Retention page coming soon...
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Personalized retention strategies for at-risk customers
         </Typography>
+
+        {recommendations.length === 0 ? (
+          <Paper sx={{ p: 3, textAlign: 'center' }}>
+            <Typography variant="body1" color="text.secondary">No recommendations available</Typography>
+          </Paper>
+        ) : (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {recommendations.slice(0, 10).map((rec: any, index) => (
+              <Paper
+                key={index}
+                sx={{
+                  p: 2,
+                  borderLeft: `4px solid ${getRiskColor(rec.risk_level)}`,
+                  bgcolor: rec.risk_level === 'Critical' || rec.risk_level === 'High' ? '#fef2f2' : '#f8fafc',
+                }}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    {rec.customer_name}
+                  </Typography>
+                  <Chip
+                    label={rec.risk_level}
+                    size="small"
+                    sx={{ bgcolor: getRiskColor(rec.risk_level), color: 'white' }}
+                  />
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  {rec.recommendations?.join(' • ')}
+                </Typography>
+              </Paper>
+            ))}
+          </Box>
+        )}
       </Box>
     </Layout>
   );

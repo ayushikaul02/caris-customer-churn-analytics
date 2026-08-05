@@ -21,7 +21,19 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Auth API
+// Response interceptor for token refresh
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('access_token');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+// ==================== AUTH API ====================
 export const authAPI = {
   login: (username: string, password: string) =>
     api.post<{ access_token: string; role: string }>('/api/auth/login', {
@@ -34,7 +46,33 @@ export const authAPI = {
   },
 };
 
-// Dashboard API
+// ==================== DASHBOARD API ====================
 export const dashboardAPI = {
   getMetrics: () => api.get('/api/dashboard/metrics'),
+};
+
+// ==================== CUSTOMERS API ====================
+export const customersAPI = {
+  getAll: () => api.get('/api/customers'),
+  getOne: (id: number) => api.get(`/api/customers/${id}`),
+};
+
+// ==================== ANALYTICS API ====================
+export const analyticsAPI = {
+  getChurn: () => api.get('/api/analytics/churn'),
+  getRevenue: () => api.get('/api/analytics/revenue'),
+  getSegments: () => api.post('/api/analytics/customer-segments'),
+};
+
+// ==================== RETENTION API ====================
+export const retentionAPI = {
+  getRecommendations: () => api.post('/api/retention/recommendations'),
+  getCampaigns: () => api.get('/api/retention/campaigns'),
+};
+
+// ==================== REPORTS API ====================
+export const reportsAPI = {
+  getMonthly: () => api.get('/api/reports/monthly'),
+  getExcel: () => api.get('/api/reports/excel'),
+  getAvailable: () => api.get('/api/reports/available'),
 };
