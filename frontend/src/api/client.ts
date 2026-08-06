@@ -49,6 +49,10 @@ export const authAPI = {
 // ==================== DASHBOARD API ====================
 export const dashboardAPI = {
   getMetrics: () => api.get('/api/dashboard/metrics'),
+  getRegional: () => api.get('/api/dashboard/regional'),  // NEW: Regional Dashboard
+  getRevenue: () => api.get('/api/dashboard/revenue'),
+  getCustomer: () => api.get('/api/dashboard/customer'),
+  getChurn: () => api.get('/api/dashboard/churn'),
 };
 
 // ==================== CUSTOMERS API ====================
@@ -62,6 +66,8 @@ export const analyticsAPI = {
   getChurn: () => api.get('/api/analytics/churn'),
   getRevenue: () => api.get('/api/analytics/revenue'),
   getSegments: () => api.post('/api/analytics/customer-segments'),
+  getCLV: () => api.get('/api/analytics/clv'),  // NEW: CLV
+  getRevenueImpact: () => api.get('/api/analytics/revenue-impact'),  // NEW: Revenue Impact
 };
 
 // ==================== RETENTION API ====================

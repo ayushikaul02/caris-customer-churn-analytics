@@ -95,7 +95,6 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# Mock users database (for CSV mode)
 fake_users_db = {
     "admin": {"username": "admin", "password": "admin123", "role": "admin"},
     "analyst": {"username": "analyst", "password": "analyst123", "role": "analyst"},
@@ -226,7 +225,6 @@ report_service = ReportService()
 async def startup_event():
     """Create tables and generate sample data"""
     try:
-        # Create database tables
         Base.metadata.create_all(bind=engine)
         logger.info("✅ Database tables created")
     except Exception as e:
@@ -268,7 +266,6 @@ async def health_check():
         "services": {"api": "running"}
     }
     
-    # Check database connection
     try:
         db = next(get_db())
         db.execute(text("SELECT 1"))
@@ -277,7 +274,6 @@ async def health_check():
     except Exception as e:
         health_status["services"]["database"] = f"error: {str(e)}"
     
-    # Check data
     data_path = './data/raw/customers_cleaned.csv'
     if os.path.exists(data_path):
         try:
@@ -409,22 +405,16 @@ async def what_if_analysis(
     discount_percent: float = Query(..., description="Discount percentage (0-50)", ge=0, le=50),
     current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
 ):
-    """
-    What-if analysis: Simulate churn reduction based on discount offer
-    """
     try:
         df = pd.read_csv('./data/raw/customers_cleaned.csv')
         
-        # Calculate current churn rate
         total = len(df)
         churned = len(df[df['status'] == 'churned'])
         current_churn_rate = churned / total if total > 0 else 0
         
-        # Simulate discount impact (simplified model)
-        discount_effect = min(discount_percent / 100, 0.5)  # Max 50% reduction
+        discount_effect = min(discount_percent / 100, 0.5)
         new_churn_rate = current_churn_rate * (1 - discount_effect * 0.5)
         
-        # Calculate impact
         customers_saved = int((current_churn_rate - new_churn_rate) * total)
         avg_revenue = df['total_spent'].mean()
         revenue_saved = customers_saved * avg_revenue
@@ -450,9 +440,24 @@ async def get_dashboard_metrics(
 ):
     try:
         df = pd.read_csv('./data/raw/customers_cleaned.csv')
-        return dashboard_service.get_dashboard_metrics(df)
+        metrics = dashboard_service.get_dashboard_metrics(df)
+        return metrics
     except Exception as e:
         logger.error(f"Dashboard metrics error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== NEW: REGIONAL DASHBOARD ====================
+
+@app.get("/api/dashboard/regional")
+async def get_regional_dashboard(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager", "viewer"]))
+):
+    """Get regional performance dashboard"""
+    try:
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
+        regional_data = dashboard_service.create_regional_dashboard(df)
+        return regional_data
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/dashboard/revenue")
