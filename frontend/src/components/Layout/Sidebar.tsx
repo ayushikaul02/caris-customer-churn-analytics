@@ -15,6 +15,7 @@ import {
   BarChart as BarChartIcon,
   CardGiftcard as CardGiftcardIcon,
   Description as DescriptionIcon,
+  Public as PublicIcon,  // NEW
   Logout as LogoutIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -26,6 +27,7 @@ const menuItems = [
   { text: 'Analytics', icon: <BarChartIcon />, path: '/analytics' },
   { text: 'Retention', icon: <CardGiftcardIcon />, path: '/retention' },
   { text: 'Reports', icon: <DescriptionIcon />, path: '/reports' },
+  { text: 'Regional', icon: <PublicIcon />, path: '/regional' },  // NEW
 ];
 
 const Sidebar: React.FC = () => {

@@ -552,6 +552,26 @@ async def get_available_reports(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# ==================== PDF REPORT ENDPOINT ====================
+
+from fastapi.responses import FileResponse
+
+@app.get("/api/reports/pdf")
+async def generate_pdf_report(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
+):
+    """Generate PDF report"""
+    try:
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
+        filepath = report_service.generate_pdf_report(df)
+        return FileResponse(
+            filepath,
+            media_type='application/pdf',
+            filename=os.path.basename(filepath)
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))    
+
 # ==================== MAIN ====================
 
 if __name__ == "__main__":

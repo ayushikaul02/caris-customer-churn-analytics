@@ -10,6 +10,7 @@ import Customers from './pages/Customers';
 import Analytics from './pages/Analytics';
 import Retention from './pages/Retention';
 import Reports from './pages/Reports';
+import Regional from './pages/Regional';  // NEW
 
 // Hooks
 import { useAuth } from './hooks/useAuth';
@@ -72,6 +73,14 @@ const App: React.FC = () => {
             element={
               <PrivateRoute>
                 <Reports />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/regional"
+            element={
+              <PrivateRoute>
+                <Regional />
               </PrivateRoute>
             }
           />

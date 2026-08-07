@@ -49,7 +49,7 @@ export const authAPI = {
 // ==================== DASHBOARD API ====================
 export const dashboardAPI = {
   getMetrics: () => api.get('/api/dashboard/metrics'),
-  getRegional: () => api.get('/api/dashboard/regional'),  // NEW: Regional Dashboard
+  getRegional: () => api.get('/api/dashboard/regional'),
   getRevenue: () => api.get('/api/dashboard/revenue'),
   getCustomer: () => api.get('/api/dashboard/customer'),
   getChurn: () => api.get('/api/dashboard/churn'),
@@ -66,14 +66,15 @@ export const analyticsAPI = {
   getChurn: () => api.get('/api/analytics/churn'),
   getRevenue: () => api.get('/api/analytics/revenue'),
   getSegments: () => api.post('/api/analytics/customer-segments'),
-  getCLV: () => api.get('/api/analytics/clv'),  // NEW: CLV
-  getRevenueImpact: () => api.get('/api/analytics/revenue-impact'),  // NEW: Revenue Impact
+  getCLV: () => api.get('/api/analytics/clv'),
+  getRevenueImpact: () => api.get('/api/analytics/revenue-impact'),
 };
 
 // ==================== RETENTION API ====================
 export const retentionAPI = {
   getRecommendations: () => api.post('/api/retention/recommendations'),
   getCampaigns: () => api.get('/api/retention/campaigns'),
+  getWhatIf: (discount: number) => api.post(`/api/analytics/what-if?discount_percent=${discount}`),
 };
 
 // ==================== REPORTS API ====================
@@ -81,4 +82,5 @@ export const reportsAPI = {
   getMonthly: () => api.get('/api/reports/monthly'),
   getExcel: () => api.get('/api/reports/excel'),
   getAvailable: () => api.get('/api/reports/available'),
+  getPDF: () => api.get('/api/reports/pdf', { responseType: 'blob' }),
 };
