@@ -1,12 +1,46 @@
-venv/
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+venv/
+env/
+.env
+*.so
+*.dylib
+*.dll
+
+# Node.js / Frontend
 frontend/node_modules/
 frontend/build/
-.git/
+frontend/dist/
+frontend/.next/
+
+# Data & Logs
+*.log
 *.csv
+*.xlsx
+data/raw/*.csv
+logs/
+*.db
+*.sqlite3
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+.dockerignore
+
+# Misc
 *.png
 *.jpg
-.gitignore
-README.md
-*.log
+*.jpeg
+*.pdf
+*.docx
