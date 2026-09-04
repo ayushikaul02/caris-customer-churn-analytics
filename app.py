@@ -11,7 +11,7 @@ from passlib.context import CryptContext
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse, FileResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
@@ -440,23 +440,18 @@ async def get_dashboard_metrics(
 ):
     try:
         df = pd.read_csv('./data/raw/customers_cleaned.csv')
-        metrics = dashboard_service.get_dashboard_metrics(df)
-        return metrics
+        return dashboard_service.get_dashboard_metrics(df)
     except Exception as e:
         logger.error(f"Dashboard metrics error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
-# ==================== NEW: REGIONAL DASHBOARD ====================
 
 @app.get("/api/dashboard/regional")
 async def get_regional_dashboard(
     current_user: dict = Depends(require_role(["admin", "analyst", "manager", "viewer"]))
 ):
-    """Get regional performance dashboard"""
     try:
         df = pd.read_csv('./data/raw/customers_cleaned.csv')
-        regional_data = dashboard_service.create_regional_dashboard(df)
-        return regional_data
+        return dashboard_service.create_regional_dashboard(df)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -487,6 +482,20 @@ async def get_churn_dashboard(
     try:
         df = pd.read_csv('./data/raw/customers_cleaned.csv')
         return dashboard_service.create_churn_dashboard(df)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== SUPPORT KPIS ENDPOINT ====================
+
+@app.get("/api/dashboard/support-kpis")
+async def get_support_kpis(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager", "viewer"]))
+):
+    """Get support KPIs"""
+    try:
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
+        tickets_df = pd.read_csv('./data/raw/support_tickets.csv')
+        return dashboard_service.get_support_kpis(df, tickets_df)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -528,6 +537,17 @@ async def get_monthly_report(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/reports/quarterly")
+async def get_quarterly_report(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
+):
+    """Generate quarterly report"""
+    try:
+        df = pd.read_csv('./data/raw/customers_cleaned.csv')
+        return report_service.generate_quarterly_report(df)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/reports/excel")
 async def generate_excel_report(
     current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
@@ -543,19 +563,6 @@ async def generate_excel_report(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/reports/available")
-async def get_available_reports(
-    current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
-):
-    try:
-        return {"reports": report_service.get_available_reports()}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# ==================== PDF REPORT ENDPOINT ====================
-
-from fastapi.responses import FileResponse
-
 @app.get("/api/reports/pdf")
 async def generate_pdf_report(
     current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
@@ -570,7 +577,16 @@ async def generate_pdf_report(
             filename=os.path.basename(filepath)
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))    
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/reports/available")
+async def get_available_reports(
+    current_user: dict = Depends(require_role(["admin", "analyst", "manager"]))
+):
+    try:
+        return {"reports": report_service.get_available_reports()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ==================== MAIN ====================
 
